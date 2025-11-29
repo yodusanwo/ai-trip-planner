@@ -1,54 +1,202 @@
-# TripPlanner Crew
+# ✈️ AI Trip Planner
 
-Welcome to the TripPlanner Crew project, powered by [crewAI](https://crewai.com). This template is designed to help you set up a multi-agent AI system with ease, leveraging the powerful and flexible framework provided by crewAI. Our goal is to enable your agents to collaborate effectively on complex tasks, maximizing their collective intelligence and capabilities.
+An intelligent trip planning application powered by CrewAI and Streamlit. Plan your perfect trip with AI agents that research destinations, review recommendations, and create beautiful day-by-day itineraries.
 
-## Installation
+## 🌟 Features
 
-Ensure you have Python >=3.10 <3.14 installed on your system. This project uses [UV](https://docs.astral.sh/uv/) for dependency management and package handling, offering a seamless setup and execution experience.
+- **🤖 Multi-Agent AI System**: Three specialized AI agents work together
+  - **Trip Researcher**: Finds attractions, restaurants, and activities
+  - **Trip Reviewer**: Analyzes and prioritizes recommendations
+  - **Trip Planner**: Creates detailed HTML itineraries
 
-First, if you haven't already, install uv:
+- **⚡ Optimized Performance**: 
+  - Uses GPT-4o-mini for speed (45s - 2.5min execution)
+  - Dynamic time estimates based on trip complexity
+  - Configurable agent iterations and rate limits
 
+- **🎨 Beautiful Interface**:
+  - Modern Streamlit web UI
+  - Real-time progress tracking
+  - Dynamic agent status updates
+  - Responsive design
+
+- **📄 Professional Output**:
+  - Styled HTML itineraries
+  - Day-by-day schedules with times and costs
+  - Budget breakdowns
+  - Downloadable trip plans
+
+- **🔒 Security Features** (New!):
+  - Rate limiting (5 trips/hour, 20 trips/day)
+  - Input validation & sanitization
+  - Daily cost cap ($10/day default)
+  - Real-time usage statistics
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- Python 3.10-3.13
+- OpenAI API key
+- Serper API key (for web search)
+
+### Installation
+
+1. **Clone the repository:**
 ```bash
-pip install uv
+git clone https://github.com/Zora-Digital/trip_planner.git
+cd trip_planner
 ```
 
-Next, navigate to your project directory and install the dependencies:
-
-(Optional) Lock the dependencies and install them by using the CLI command:
+2. **Install dependencies:**
 ```bash
-crewai install
-```
-### Customizing
-
-**Add your `OPENAI_API_KEY` into the `.env` file**
-
-- Modify `src/trip_planner/config/agents.yaml` to define your agents
-- Modify `src/trip_planner/config/tasks.yaml` to define your tasks
-- Modify `src/trip_planner/crew.py` to add your own logic, tools and specific args
-- Modify `src/trip_planner/main.py` to add custom inputs for your agents and tasks
-
-## Running the Project
-
-To kickstart your crew of AI agents and begin task execution, run this from the root folder of your project:
-
-```bash
-$ crewai run
+pip install -r requirements.txt
+# or
+uv sync
 ```
 
-This command initializes the trip_planner Crew, assembling the agents and assigning them tasks as defined in your configuration.
+3. **Set up environment variables:**
 
-This example, unmodified, will run the create a `report.md` file with the output of a research on LLMs in the root folder.
+Create a `.env` file:
+```env
+OPENAI_API_KEY=your-openai-api-key
+SERPER_API_KEY=your-serper-api-key
+MODEL=gpt-4o-mini
+```
 
-## Understanding Your Crew
+4. **Run the Streamlit app:**
+```bash
+streamlit run app.py
+```
 
-The trip_planner Crew is composed of multiple AI agents, each with unique roles, goals, and tools. These agents collaborate on a series of tasks, defined in `config/tasks.yaml`, leveraging their collective skills to achieve complex objectives. The `config/agents.yaml` file outlines the capabilities and configurations of each agent in your crew.
+The app will open at `http://localhost:8501`
 
-## Support
+## 📖 Usage
 
-For support, questions, or feedback regarding the TripPlanner Crew or crewAI.
-- Visit our [documentation](https://docs.crewai.com)
-- Reach out to us through our [GitHub repository](https://github.com/joaomdmoura/crewai)
-- [Join our Discord](https://discord.com/invite/X4JWnZnxPb)
-- [Chat with our docs](https://chatg.pt/DWjSBZn)
+1. **Enter trip details:**
+   - Destination (e.g., "Paris, France")
+   - Duration (e.g., "5 days")
+   - Budget level (Budget/Mid-Range/Luxury)
+   - Travel style preferences
+   - Special requirements
 
-Let's create wonders together with the power and simplicity of crewAI.
+2. **Click "Plan My Trip"**
+
+3. **Watch the AI agents work:**
+   - Real-time progress updates
+   - Agent status indicators
+   - Time estimates
+
+4. **Get your itinerary:**
+   - Beautiful HTML format
+   - Download for offline use
+   - Print to PDF from browser
+
+## 🔒 Security
+
+This application includes built-in security features:
+
+- **Rate Limiting**: Prevents abuse (5 trips/hour, 20/day)
+- **Input Validation**: Blocks malicious inputs
+- **Cost Cap**: Protects your budget ($10/day default)
+- **Usage Dashboard**: Monitor your usage in real-time
+
+See [SECURITY.md](SECURITY.md) for detailed documentation.
+
+## ⚙️ Configuration
+
+### Adjust Security Settings
+
+Edit the configuration at the top of `app.py`:
+
+```python
+MAX_TRIPS_PER_HOUR = 5
+MAX_TRIPS_PER_DAY = 20
+DAILY_COST_CAP_USD = 10.0
+```
+
+### Change AI Model
+
+Edit `.env`:
+```env
+MODEL=gpt-4o-mini  # Fast & cheap
+# MODEL=gpt-4o     # Higher quality
+```
+
+### Optimize Performance
+
+Edit `src/trip_planner/crew.py`:
+```python
+max_iter=5    # Fewer iterations = faster
+max_rpm=30    # Higher RPM = faster API calls
+```
+
+## 🚢 Deployment
+
+### Streamlit Cloud
+
+1. Push to GitHub
+2. Go to [share.streamlit.io](https://share.streamlit.io)
+3. Connect your repo
+4. Set main file: `app.py`
+5. Add secrets in dashboard
+6. Deploy!
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed instructions.
+
+## 📊 Performance
+
+| Trip Duration | Estimated Time | Cost (gpt-4o-mini) |
+|--------------|----------------|-------------------|
+| 1-2 days | 45-75 seconds | $0.01-0.02 |
+| 3-4 days | 60-90 seconds | $0.02-0.03 |
+| 5-7 days | 1.5-2 minutes | $0.03-0.04 |
+| 8+ days | 2-2.5 minutes | $0.04-0.05 |
+
+## 🏗️ Project Structure
+
+```
+trip_planner/
+├── app.py                          # Streamlit frontend
+├── security_config.py              # Security settings
+├── src/trip_planner/
+│   ├── crew.py                     # CrewAI configuration
+│   ├── config/
+│   │   ├── agents.yaml            # Agent definitions
+│   │   └── tasks.yaml             # Task definitions
+│   └── tools/
+│       └── custom_tool.py         # Custom tools
+├── .streamlit/
+│   ├── config.toml                # Streamlit config
+│   └── secrets.toml.example       # Secrets template
+├── output/                         # Generated trip plans
+├── requirements.txt               # Python dependencies
+├── SECURITY.md                    # Security documentation
+└── DEPLOYMENT.md                  # Deployment guide
+```
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## 📝 License
+
+This project is open source and available under the MIT License.
+
+## 🙏 Acknowledgments
+
+- Built with [CrewAI](https://crewai.com)
+- Frontend powered by [Streamlit](https://streamlit.io)
+- AI by [OpenAI](https://openai.com)
+- Search by [Serper](https://serper.dev)
+
+## 📞 Support
+
+- 📚 [Documentation](DEPLOYMENT.md)
+- 🔒 [Security Guide](SECURITY.md)
+- 🐛 [Report Issues](https://github.com/Zora-Digital/trip_planner/issues)
+- 💬 [CrewAI Discord](https://discord.com/invite/X4JWnZnxPb)
+
+---
+
+**Made with ❤️ using CrewAI and Streamlit**

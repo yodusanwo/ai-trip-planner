@@ -1,8 +1,10 @@
 import streamlit as st
 import os
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
+import hashlib
+import re
 
 # Load environment variables
 load_dotenv()
@@ -74,6 +76,143 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# ============================================================================
+# SECURITY FEATURES
+# ============================================================================
+
+# Configuration
+MAX_TRIPS_PER_HOUR = 5
+MAX_TRIPS_PER_DAY = 20
+DAILY_COST_CAP_USD = 10.0  # Maximum daily spending
+ESTIMATED_COST_PER_TRIP = 0.03  # Average cost per trip in USD
+
+# Input validation limits
+MAX_DESTINATION_LENGTH = 100
+MAX_DURATION_DAYS = 30
+MAX_SPECIAL_REQUIREMENTS_LENGTH = 500
+
+def get_session_id():
+    """Generate a unique session ID based on Streamlit session"""
+    if 'session_id' not in st.session_state:
+        # Use Streamlit's session ID if available, otherwise create one
+        import uuid
+        st.session_state.session_id = str(uuid.uuid4())
+    return st.session_state.session_id
+
+def validate_input(destination, duration, special_requirements):
+    """Validate user inputs to prevent abuse and attacks"""
+    errors = []
+    
+    # Validate destination
+    if len(destination) > MAX_DESTINATION_LENGTH:
+        errors.append(f"Destination must be less than {MAX_DESTINATION_LENGTH} characters")
+    
+    # Check for suspicious patterns (basic SQL injection prevention)
+    suspicious_patterns = [
+        r'(\bSELECT\b|\bDROP\b|\bINSERT\b|\bUPDATE\b|\bDELETE\b)',  # SQL keywords
+        r'(<script|javascript:|onerror=)',  # XSS attempts
+        r'(\.\.\/|\.\.\\)',  # Path traversal
+    ]
+    
+    for pattern in suspicious_patterns:
+        if re.search(pattern, destination, re.IGNORECASE) or \
+           re.search(pattern, special_requirements, re.IGNORECASE):
+            errors.append("Invalid characters detected in input")
+            break
+    
+    # Validate duration
+    duration_numbers = re.findall(r'\d+', duration)
+    if duration_numbers:
+        days = int(duration_numbers[0])
+        if 'week' in duration.lower():
+            days *= 7
+        if days > MAX_DURATION_DAYS:
+            errors.append(f"Trip duration cannot exceed {MAX_DURATION_DAYS} days")
+    
+    # Validate special requirements length
+    if len(special_requirements) > MAX_SPECIAL_REQUIREMENTS_LENGTH:
+        errors.append(f"Special requirements must be less than {MAX_SPECIAL_REQUIREMENTS_LENGTH} characters")
+    
+    return errors
+
+def check_rate_limit():
+    """Check if user has exceeded rate limits"""
+    session_id = get_session_id()
+    current_time = datetime.now()
+    
+    # Initialize rate limiting data
+    if 'rate_limit_data' not in st.session_state:
+        st.session_state.rate_limit_data = {
+            'trips': [],
+            'daily_cost': 0.0,
+            'last_reset': current_time.date()
+        }
+    
+    rate_data = st.session_state.rate_limit_data
+    
+    # Reset daily counters if it's a new day
+    if rate_data['last_reset'] != current_time.date():
+        rate_data['trips'] = []
+        rate_data['daily_cost'] = 0.0
+        rate_data['last_reset'] = current_time.date()
+    
+    # Remove trips older than 1 hour
+    one_hour_ago = current_time - timedelta(hours=1)
+    rate_data['trips'] = [t for t in rate_data['trips'] if t > one_hour_ago]
+    
+    # Check hourly limit
+    trips_last_hour = len(rate_data['trips'])
+    if trips_last_hour >= MAX_TRIPS_PER_HOUR:
+        return False, f"Rate limit exceeded: Maximum {MAX_TRIPS_PER_HOUR} trips per hour. Please try again later."
+    
+    # Check daily limit
+    trips_today = len([t for t in rate_data['trips'] if t.date() == current_time.date()])
+    if trips_today >= MAX_TRIPS_PER_DAY:
+        return False, f"Daily limit exceeded: Maximum {MAX_TRIPS_PER_DAY} trips per day. Please try again tomorrow."
+    
+    # Check cost cap
+    estimated_new_cost = rate_data['daily_cost'] + ESTIMATED_COST_PER_TRIP
+    if estimated_new_cost > DAILY_COST_CAP_USD:
+        return False, f"Daily cost cap reached (${DAILY_COST_CAP_USD:.2f}). Service will resume tomorrow."
+    
+    return True, None
+
+def record_trip():
+    """Record a trip for rate limiting"""
+    if 'rate_limit_data' not in st.session_state:
+        st.session_state.rate_limit_data = {
+            'trips': [],
+            'daily_cost': 0.0,
+            'last_reset': datetime.now().date()
+        }
+    
+    st.session_state.rate_limit_data['trips'].append(datetime.now())
+    st.session_state.rate_limit_data['daily_cost'] += ESTIMATED_COST_PER_TRIP
+
+def get_usage_stats():
+    """Get current usage statistics"""
+    if 'rate_limit_data' not in st.session_state:
+        return 0, 0, 0.0
+    
+    rate_data = st.session_state.rate_limit_data
+    current_time = datetime.now()
+    
+    # Trips in last hour
+    one_hour_ago = current_time - timedelta(hours=1)
+    trips_last_hour = len([t for t in rate_data['trips'] if t > one_hour_ago])
+    
+    # Trips today
+    trips_today = len([t for t in rate_data['trips'] if t.date() == current_time.date()])
+    
+    # Cost today
+    cost_today = rate_data.get('daily_cost', 0.0)
+    
+    return trips_last_hour, trips_today, cost_today
+
+# ============================================================================
+# END SECURITY FEATURES
+# ============================================================================
+
 # Initialize session state
 if 'crew_running' not in st.session_state:
     st.session_state.crew_running = False
@@ -107,6 +246,25 @@ with st.sidebar:
     
     Your personalized trip plan will be ready in **45 seconds to 2.5 minutes** depending on trip length! ⚡
     """)
+    
+    # Usage Statistics
+    st.markdown("---")
+    st.markdown("### 📊 Usage Stats")
+    trips_hour, trips_day, cost_day = get_usage_stats()
+    
+    col_a, col_b = st.columns(2)
+    with col_a:
+        st.metric("Trips (Hour)", f"{trips_hour}/{MAX_TRIPS_PER_HOUR}")
+        st.metric("Cost Today", f"${cost_day:.3f}")
+    with col_b:
+        st.metric("Trips (Day)", f"{trips_day}/{MAX_TRIPS_PER_DAY}")
+        remaining_budget = max(0, DAILY_COST_CAP_USD - cost_day)
+        st.metric("Budget Left", f"${remaining_budget:.2f}")
+    
+    if trips_hour >= MAX_TRIPS_PER_HOUR * 0.8:
+        st.warning("⚠️ Approaching hourly limit")
+    if cost_day >= DAILY_COST_CAP_USD * 0.8:
+        st.warning("⚠️ Approaching daily cost cap")
 
 # Main content area
 col1, col2 = st.columns([2, 1])
@@ -150,19 +308,36 @@ with col1:
             submitted = st.form_submit_button("🚀 Plan My Trip", use_container_width=True)
             
             if submitted:
+                # Basic validation
                 if not destination or not duration:
                     st.error("⚠️ Please fill in destination and duration!")
                 elif not os.getenv("OPENAI_API_KEY") or not os.getenv("SERPER_API_KEY"):
                     st.error("⚠️ Please set OPENAI_API_KEY and SERPER_API_KEY in your .env file!")
                 else:
-                    # Store form data in session state
-                    st.session_state.destination = destination
-                    st.session_state.duration = duration
-                    st.session_state.budget_level = budget_level
-                    st.session_state.travel_style = travel_style
-                    st.session_state.special_requirements = special_requirements
-                    st.session_state.crew_running = True
-                    st.rerun()
+                    # Security Check 1: Input Validation
+                    validation_errors = validate_input(destination, duration, special_requirements)
+                    if validation_errors:
+                        for error in validation_errors:
+                            st.error(f"🚫 {error}")
+                    else:
+                        # Security Check 2: Rate Limiting
+                        rate_limit_ok, rate_limit_msg = check_rate_limit()
+                        if not rate_limit_ok:
+                            st.error(f"🚫 {rate_limit_msg}")
+                            st.info("💡 Rate limits help us keep the service running smoothly for everyone!")
+                        else:
+                            # All checks passed - proceed with trip planning
+                            # Record this trip for rate limiting
+                            record_trip()
+                            
+                            # Store form data in session state
+                            st.session_state.destination = destination
+                            st.session_state.duration = duration
+                            st.session_state.budget_level = budget_level
+                            st.session_state.travel_style = travel_style
+                            st.session_state.special_requirements = special_requirements
+                            st.session_state.crew_running = True
+                            st.rerun()
         
         st.markdown("---")
         
