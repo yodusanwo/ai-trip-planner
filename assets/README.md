@@ -96,3 +96,4 @@ This folder contains preview images for social media sharing (Open Graph and Twi
 - Images should be optimized (compressed) for faster loading
 - Consider creating multiple versions for different campaigns
 
+

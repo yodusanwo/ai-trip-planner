@@ -113,7 +113,37 @@ st.markdown("""
         align-items: center;
         flex-direction: column;
     }
+    
+    /* Mobile-specific fixes */
+    @media (max-width: 768px) {
+        .main-header {
+            font-size: 2rem;
+        }
+        .sub-header {
+            font-size: 1rem;
+        }
+        /* Ensure HTML preview content is responsive */
+        iframe {
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+    }
+    
+    /* Scroll to progress section on mobile */
+    #progress-anchor {
+        scroll-margin-top: 20px;
+    }
 </style>
+
+<script>
+    // Auto-scroll to progress section when trip planning starts
+    function scrollToProgress() {
+        const progressSection = document.getElementById('progress-anchor');
+        if (progressSection) {
+            progressSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+</script>
 """, unsafe_allow_html=True)
 
 # ============================================================================
@@ -377,6 +407,7 @@ with col1:
                             st.session_state.travel_style = travel_style
                             st.session_state.special_requirements = special_requirements
                             st.session_state.crew_running = True
+                            st.session_state.scroll_to_progress = True
                             st.rerun()
         
         st.markdown("---")
@@ -393,6 +424,23 @@ with col2:
     if st.session_state.crew_running:
         st.header("🤖 Planning Your Trip...")
         st.markdown("Our AI agents are working on your itinerary...")
+        
+        # Auto-scroll to this section on mobile when planning starts
+        if st.session_state.get('scroll_to_progress', False):
+            st.markdown("""
+            <script>
+                // Scroll to progress section on mobile
+                window.parent.postMessage({type: 'streamlit:setComponentValue', value: true}, '*');
+                setTimeout(function() {
+                    window.scrollTo({top: 0, behavior: 'smooth'});
+                    const mainContent = window.parent.document.querySelector('[data-testid="stAppViewContainer"]');
+                    if (mainContent && window.innerWidth <= 768) {
+                        mainContent.scrollTop = mainContent.scrollHeight / 2;
+                    }
+                }, 100);
+            </script>
+            """, unsafe_allow_html=True)
+            st.session_state.scroll_to_progress = False
         
         # Progress bar and status in the right column
         progress_bar = st.progress(0)
@@ -641,8 +689,70 @@ if st.session_state.output_file is not None and not st.session_state.crew_runnin
         st.markdown("---")
         st.subheader("📋 Preview")
         
+        # Add mobile-responsive wrapper to HTML content
+        mobile_responsive_html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+                body {{
+                    margin: 0;
+                    padding: 10px;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    overflow-x: hidden;
+                }}
+                * {{
+                    max-width: 100%;
+                    box-sizing: border-box;
+                }}
+                table {{
+                    width: 100% !important;
+                    display: block;
+                    overflow-x: auto;
+                    -webkit-overflow-scrolling: touch;
+                }}
+                h1, h2, h3, h4, h5, h6 {{
+                    word-wrap: break-word;
+                    overflow-wrap: break-word;
+                }}
+                p, li, div {{
+                    word-wrap: break-word;
+                    overflow-wrap: break-word;
+                }}
+                @media (max-width: 768px) {{
+                    body {{
+                        font-size: 14px;
+                        padding: 5px;
+                    }}
+                    h1 {{
+                        font-size: 1.5rem !important;
+                    }}
+                    h2 {{
+                        font-size: 1.3rem !important;
+                    }}
+                    h3 {{
+                        font-size: 1.1rem !important;
+                    }}
+                    table {{
+                        font-size: 12px;
+                    }}
+                    /* Make schedule items stack better on mobile */
+                    .schedule-item, .activity {{
+                        display: block !important;
+                        margin-bottom: 10px !important;
+                    }}
+                }}
+            </style>
+        </head>
+        <body>
+            {html_content}
+        </body>
+        </html>
+        """
+        
         # Display HTML in an iframe-like component
-        st.components.v1.html(html_content, height=800, scrolling=True)
+        st.components.v1.html(mobile_responsive_html, height=800, scrolling=True)
         
         # Reset button after preview
         st.markdown("---")
