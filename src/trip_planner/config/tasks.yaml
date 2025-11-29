@@ -1,0 +1,22 @@
+research_task:
+  description: >
+    Research {destination} for {duration} trip. Find: 5-7 top attractions, 
+    3-5 restaurants, 2-3 activities, transport, costs, key tips. Be brief.
+  expected_output: >
+    Brief report: attractions, restaurants, activities, transport, budget, tips.
+  agent: trip_researcher
+
+review_task:
+  description: >
+    Review {destination} research. Rank top 5 must-see items and give quick itinerary tips.
+  expected_output: >
+    Priority list and brief recommendations for planning.
+  agent: trip_reviewer
+
+planning_task:
+  description: >
+    Create HTML itinerary for {destination} ({duration}). Daily schedule with times, 
+    meals, activities, costs. Add CSS styling, emojis, budget, tips. Professional format.
+  expected_output: >
+    Styled HTML with daily schedules, times, costs, budget, tips. Pure HTML (no markdown).
+  agent: trip_planner
