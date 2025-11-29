@@ -1,6 +1,8 @@
 crewai==1.5.0
-crewai-tools>=0.1.0
 streamlit>=1.28.0
 python-dotenv>=1.0.0
-pillow>=10.0.0
+langchain>=0.1.0
+langchain-openai>=0.0.5
+langchain-community>=0.0.20
+openai>=1.0.0
 
