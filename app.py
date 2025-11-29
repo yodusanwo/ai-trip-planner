@@ -14,11 +14,47 @@ from src.trip_planner.crew import TripPlanner
 
 # Page configuration
 st.set_page_config(
-    page_title="AI Trip Planner",
+    page_title="AI Trip Planner - Plan Your Perfect Trip with AI",
     page_icon="✈️",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
+    menu_items={
+        'Get Help': 'https://github.com/Zora-Digital/trip_planner',
+        'Report a bug': 'https://github.com/Zora-Digital/trip_planner/issues',
+        'About': '''
+        # AI Trip Planner
+        
+        Plan your perfect trip with AI-powered research and recommendations.
+        
+        **Features:**
+        - 🤖 Multi-agent AI system
+        - ⚡ Fast execution (45s - 2.5min)
+        - 📄 Beautiful HTML itineraries
+        - 🔒 Enterprise-grade security
+        
+        Built with CrewAI and Streamlit.
+        '''
+    }
 )
+
+# Add meta tags for SEO and social media
+st.markdown("""
+<meta name="description" content="AI Trip Planner - Plan your perfect trip with AI-powered agents. Get personalized day-by-day itineraries with attractions, restaurants, activities, and budget breakdowns in 45 seconds to 2.5 minutes.">
+<meta name="keywords" content="AI trip planner, travel itinerary, trip planning, AI travel agent, vacation planner, travel AI, CrewAI, automated trip planning">
+<meta name="author" content="Zora Digital">
+
+<!-- Open Graph / Facebook -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="AI Trip Planner - Plan Your Perfect Trip with AI">
+<meta property="og:description" content="Get personalized day-by-day travel itineraries powered by AI agents. Research, review, and plan your perfect trip in minutes.">
+<meta property="og:image" content="https://raw.githubusercontent.com/Zora-Digital/trip_planner/main/assets/og-image.png">
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="AI Trip Planner - Plan Your Perfect Trip with AI">
+<meta name="twitter:description" content="Get personalized day-by-day travel itineraries powered by AI agents. Research, review, and plan your perfect trip in minutes.">
+<meta name="twitter:image" content="https://raw.githubusercontent.com/Zora-Digital/trip_planner/main/assets/twitter-image.png">
+""", unsafe_allow_html=True)
 
 # Custom CSS
 st.markdown("""
