@@ -24,6 +24,8 @@ st.set_page_config(
         'About': '''
         # AI Trip Planner
         
+        Created by **Zora Digital** as a showcase of AI Agent capabilities.
+        
         Plan your perfect trip with AI-powered research and recommendations.
         
         **Features:**
@@ -33,26 +35,28 @@ st.set_page_config(
         - 🔒 Enterprise-grade security
         
         Built with CrewAI and Streamlit.
+        
+        © 2024 Zora Digital
         '''
     }
 )
 
 # Add meta tags for SEO and social media
 st.markdown("""
-<meta name="description" content="AI Trip Planner - Plan your perfect trip with AI-powered agents. Get personalized day-by-day itineraries with attractions, restaurants, activities, and budget breakdowns in 45 seconds to 2.5 minutes.">
-<meta name="keywords" content="AI trip planner, travel itinerary, trip planning, AI travel agent, vacation planner, travel AI, CrewAI, automated trip planning">
+<meta name="description" content="AI Trip Planner by Zora Digital - A showcase of AI Agent capabilities. Plan your perfect trip with AI-powered agents. Get personalized day-by-day itineraries in 45 seconds to 2.5 minutes.">
+<meta name="keywords" content="AI trip planner, travel itinerary, trip planning, AI travel agent, vacation planner, travel AI, CrewAI, automated trip planning, Zora Digital, AI agents, multi-agent system">
 <meta name="author" content="Zora Digital">
 
 <!-- Open Graph / Facebook -->
 <meta property="og:type" content="website">
-<meta property="og:title" content="AI Trip Planner - Plan Your Perfect Trip with AI">
-<meta property="og:description" content="Get personalized day-by-day travel itineraries powered by AI agents. Research, review, and plan your perfect trip in minutes.">
+<meta property="og:title" content="AI Trip Planner by Zora Digital - AI Agent Showcase">
+<meta property="og:description" content="A showcase of AI Agent capabilities. Get personalized day-by-day travel itineraries powered by multi-agent AI system. Built by Zora Digital with CrewAI.">
 <meta property="og:image" content="https://raw.githubusercontent.com/Zora-Digital/trip_planner/main/assets/og-image.png">
 
 <!-- Twitter -->
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="AI Trip Planner - Plan Your Perfect Trip with AI">
-<meta name="twitter:description" content="Get personalized day-by-day travel itineraries powered by AI agents. Research, review, and plan your perfect trip in minutes.">
+<meta name="twitter:title" content="AI Trip Planner by Zora Digital - AI Agent Showcase">
+<meta name="twitter:description" content="A showcase of AI Agent capabilities. Get personalized day-by-day travel itineraries powered by multi-agent AI system. Built by Zora Digital.">
 <meta name="twitter:image" content="https://raw.githubusercontent.com/Zora-Digital/trip_planner/main/assets/twitter-image.png">
 """, unsafe_allow_html=True)
 
