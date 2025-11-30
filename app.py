@@ -152,8 +152,9 @@ st.markdown("""
 
 # Configuration
 MAX_TRIPS_PER_HOUR = 5
-MAX_TRIPS_PER_DAY = 20
-DAILY_COST_CAP_USD = 10.0  # Maximum daily spending
+MAX_TRIPS_PER_DAY = 50
+MAX_TRIPS_PER_WEEK = 100
+WEEKLY_COST_CAP_USD = 10.0  # Maximum weekly spending
 ESTIMATED_COST_PER_TRIP = 0.03  # Average cost per trip in USD
 
 # Input validation limits
@@ -214,24 +215,30 @@ def check_rate_limit():
     if 'rate_limit_data' not in st.session_state:
         st.session_state.rate_limit_data = {
             'trips': [],
-            'daily_cost': 0.0,
-            'last_reset': current_time.date()
+            'weekly_cost': 0.0,
+            'last_reset': current_time.date(),
+            'week_start': current_time.date() - timedelta(days=current_time.weekday())
         }
     
     rate_data = st.session_state.rate_limit_data
     
-    # Reset daily counters if it's a new day
-    if rate_data['last_reset'] != current_time.date():
+    # Calculate current week start (Monday)
+    current_week_start = current_time.date() - timedelta(days=current_time.weekday())
+    
+    # Reset weekly counters if it's a new week
+    if rate_data.get('week_start') != current_week_start:
         rate_data['trips'] = []
-        rate_data['daily_cost'] = 0.0
+        rate_data['weekly_cost'] = 0.0
+        rate_data['week_start'] = current_week_start
         rate_data['last_reset'] = current_time.date()
     
-    # Remove trips older than 1 hour
-    one_hour_ago = current_time - timedelta(hours=1)
-    rate_data['trips'] = [t for t in rate_data['trips'] if t > one_hour_ago]
+    # Remove trips older than 1 week
+    one_week_ago = current_time - timedelta(days=7)
+    rate_data['trips'] = [t for t in rate_data['trips'] if t > one_week_ago]
     
     # Check hourly limit
-    trips_last_hour = len(rate_data['trips'])
+    one_hour_ago = current_time - timedelta(hours=1)
+    trips_last_hour = len([t for t in rate_data['trips'] if t > one_hour_ago])
     if trips_last_hour >= MAX_TRIPS_PER_HOUR:
         return False, f"Rate limit exceeded: Maximum {MAX_TRIPS_PER_HOUR} trips per hour. Please try again later."
     
@@ -240,29 +247,36 @@ def check_rate_limit():
     if trips_today >= MAX_TRIPS_PER_DAY:
         return False, f"Daily limit exceeded: Maximum {MAX_TRIPS_PER_DAY} trips per day. Please try again tomorrow."
     
-    # Check cost cap
-    estimated_new_cost = rate_data['daily_cost'] + ESTIMATED_COST_PER_TRIP
-    if estimated_new_cost > DAILY_COST_CAP_USD:
-        return False, f"Daily cost cap reached (${DAILY_COST_CAP_USD:.2f}). Service will resume tomorrow."
+    # Check weekly limit
+    trips_this_week = len(rate_data['trips'])
+    if trips_this_week >= MAX_TRIPS_PER_WEEK:
+        return False, f"Weekly limit exceeded: Maximum {MAX_TRIPS_PER_WEEK} trips per week. Resets on Monday."
+    
+    # Check weekly cost cap
+    estimated_new_cost = rate_data['weekly_cost'] + ESTIMATED_COST_PER_TRIP
+    if estimated_new_cost > WEEKLY_COST_CAP_USD:
+        return False, f"Weekly cost cap reached (${WEEKLY_COST_CAP_USD:.2f}). Service will resume next Monday."
     
     return True, None
 
 def record_trip():
     """Record a trip for rate limiting"""
+    current_time = datetime.now()
     if 'rate_limit_data' not in st.session_state:
         st.session_state.rate_limit_data = {
             'trips': [],
-            'daily_cost': 0.0,
-            'last_reset': datetime.now().date()
+            'weekly_cost': 0.0,
+            'last_reset': current_time.date(),
+            'week_start': current_time.date() - timedelta(days=current_time.weekday())
         }
     
-    st.session_state.rate_limit_data['trips'].append(datetime.now())
-    st.session_state.rate_limit_data['daily_cost'] += ESTIMATED_COST_PER_TRIP
+    st.session_state.rate_limit_data['trips'].append(current_time)
+    st.session_state.rate_limit_data['weekly_cost'] += ESTIMATED_COST_PER_TRIP
 
 def get_usage_stats():
     """Get current usage statistics"""
     if 'rate_limit_data' not in st.session_state:
-        return 0, 0, 0.0
+        return 0, 0, 0, 0.0
     
     rate_data = st.session_state.rate_limit_data
     current_time = datetime.now()
@@ -274,10 +288,13 @@ def get_usage_stats():
     # Trips today
     trips_today = len([t for t in rate_data['trips'] if t.date() == current_time.date()])
     
-    # Cost today
-    cost_today = rate_data.get('daily_cost', 0.0)
+    # Trips this week
+    trips_this_week = len(rate_data['trips'])
     
-    return trips_last_hour, trips_today, cost_today
+    # Cost this week
+    cost_week = rate_data.get('weekly_cost', 0.0)
+    
+    return trips_last_hour, trips_today, trips_this_week, cost_week
 
 # ============================================================================
 # END SECURITY FEATURES
@@ -320,21 +337,23 @@ with st.sidebar:
     # Usage Statistics
     st.markdown("---")
     st.markdown("### 📊 Usage Stats")
-    trips_hour, trips_day, cost_day = get_usage_stats()
+    trips_hour, trips_day, trips_week, cost_week = get_usage_stats()
     
     col_a, col_b = st.columns(2)
     with col_a:
         st.metric("Trips (Hour)", f"{trips_hour}/{MAX_TRIPS_PER_HOUR}")
-        st.metric("Cost Today", f"${cost_day:.3f}")
-    with col_b:
         st.metric("Trips (Day)", f"{trips_day}/{MAX_TRIPS_PER_DAY}")
-        remaining_budget = max(0, DAILY_COST_CAP_USD - cost_day)
+    with col_b:
+        st.metric("Trips (Week)", f"{trips_week}/{MAX_TRIPS_PER_WEEK}")
+        remaining_budget = max(0, WEEKLY_COST_CAP_USD - cost_week)
         st.metric("Budget Left", f"${remaining_budget:.2f}")
+    
+    st.caption(f"Weekly cost: ${cost_week:.3f} / ${WEEKLY_COST_CAP_USD:.2f}")
     
     if trips_hour >= MAX_TRIPS_PER_HOUR * 0.8:
         st.warning("⚠️ Approaching hourly limit")
-    if cost_day >= DAILY_COST_CAP_USD * 0.8:
-        st.warning("⚠️ Approaching daily cost cap")
+    if cost_week >= WEEKLY_COST_CAP_USD * 0.8:
+        st.warning("⚠️ Approaching weekly cost cap")
 
 # Main content area
 col1, col2 = st.columns([2, 1])
