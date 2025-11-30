@@ -36,7 +36,7 @@ st.set_page_config(
         
         Built with CrewAI and Streamlit.
         
-        © 2024 Zora Digital
+        © 2025 Zora Digital
         '''
     }
 )
@@ -798,7 +798,7 @@ st.markdown("""
     <div class="footer-content">
         <h3>About</h3>
         <p>AI Trip Planner uses advanced AI agents powered by CrewAI to research, review, and plan your perfect trip.</p>
-        <p style="margin-top: 1rem;">© 2024 AI Trip Planner. Built with ❤️ using Streamlit and CrewAI.</p>
+        <p style="margin-top: 1rem;">© 2025 AI Trip Planner. Built with ❤️ using Streamlit and CrewAI.</p>
     </div>
 </div>
 """, unsafe_allow_html=True)
