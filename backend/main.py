@@ -413,17 +413,18 @@ async def run_crew_async(trip_id: str, inputs: Dict[str, Any]):
         }
         
         # Update progress - Research phase start
-        print(f"\n[{trip_id}] 🎯 Initializing Step 1/3: Research Task")
-        print(f"  → Task: research_task")
-        print(f"  → Assigned to: Research Agent (trip_researcher)")
-        print(f"  → Status: 🔄 Starting...")
-        
         trip_progress[trip_id].update({
             "current_agent": "trip_researcher",
             "current_step": 1,
             "total_steps": 3,
             "progress": 10,
             "message": "Starting research agent...",
+            "debug": {
+                "current_task": 1,
+                "task_name": "research_task",
+                "assigned_agent": "Research Agent (trip_researcher)",
+                "agent_status": "starting",
+            }
         })
         await asyncio.sleep(0.2)
         
@@ -433,8 +434,13 @@ async def run_crew_async(trip_id: str, inputs: Dict[str, Any]):
             "total_steps": 3,
             "progress": 15,
             "message": "Researching destination and gathering information...",
+            "debug": {
+                "current_task": 1,
+                "task_name": "research_task",
+                "assigned_agent": "Research Agent (trip_researcher)",
+                "agent_status": "working",
+            }
         })
-        print(f"[{trip_id}]  → Status: 🔄 Working...")
         await asyncio.sleep(0.2)
         
         # Start crew in a separate thread with shared progress dictionary
@@ -503,15 +509,13 @@ async def run_crew_async(trip_id: str, inputs: Dict[str, Any]):
                 else:
                     message = f"{agent_name} is working... ({overall_progress}% complete)"
                 
-                # Debug logging
-                task_name = task_names[current_task][1] if current_task < len(task_names) else "Unknown"
-                print(f"[{trip_id}] 📊 Progress Update:")
-                print(f"  → Step: {current_step}/{total_steps}")
-                print(f"  → Task: {task_name}")
-                print(f"  → Agent: {agent_name} ({agent_id})")
-                print(f"  → Status: 🔄 Working")
-                print(f"  → Progress: {overall_progress}%")
-                print(f"  → Elapsed: {int(elapsed)}s | Remaining: ~{int(total_estimated - elapsed)}s")
+                # Determine task name for debug info
+                task_name_map = {
+                    0: "research_task",
+                    1: "review_task",
+                    2: "planning_task",
+                }
+                task_name = task_name_map.get(current_task, "unknown_task")
                 
                 trip_progress[trip_id].update({
                     "current_agent": agent_id,
@@ -520,6 +524,14 @@ async def run_crew_async(trip_id: str, inputs: Dict[str, Any]):
                     "progress": overall_progress,
                     "message": message,
                     "estimated_time_remaining": max(0, int(total_estimated - elapsed)),
+                    "debug": {
+                        "current_task": current_step,
+                        "task_name": task_name,
+                        "assigned_agent": f"{agent_name} ({agent_id})",
+                        "agent_status": "working",
+                        "elapsed_time": int(elapsed),
+                        "remaining_time": int(total_estimated - elapsed),
+                    }
                 })
                 last_update_time = time.time()
             
@@ -533,17 +545,18 @@ async def run_crew_async(trip_id: str, inputs: Dict[str, Any]):
             raise Exception(result_container.get("error", "Crew execution failed"))
         
         # Update progress - Planning phase completion
-        print(f"\n[{trip_id}] 🎯 Finalizing Step 3/3: Planning Task")
-        print(f"  → Task: planning_task")
-        print(f"  → Assigned to: Planning Agent (trip_planner)")
-        print(f"  → Status: 🔄 Processing final itinerary...")
-        
         trip_progress[trip_id].update({
             "current_agent": "trip_planner",
             "current_step": 3,
             "total_steps": 3,
             "progress": 90,
             "message": "Processing final itinerary...",
+            "debug": {
+                "current_task": 3,
+                "task_name": "planning_task",
+                "assigned_agent": "Planning Agent (trip_planner)",
+                "agent_status": "working",
+            }
         })
         await asyncio.sleep(0.2)
         
@@ -571,12 +584,6 @@ async def run_crew_async(trip_id: str, inputs: Dict[str, Any]):
             print(f"[{trip_id}] Stored result ({len(html_content)} characters)")
             
             # Update progress - Complete
-            print(f"\n[{trip_id}] ✅ All Tasks Completed Successfully!")
-            print(f"  → Task 1: research_task → ✅ Complete (Research Agent)")
-            print(f"  → Task 2: review_task → ✅ Complete (Review Agent)")
-            print(f"  → Task 3: planning_task → ✅ Complete (Planning Agent)")
-            print(f"  → Final Status: ✅ All agents completed")
-            
             trip_progress[trip_id].update({
                 "status": "completed",
                 "current_agent": None,
@@ -584,10 +591,20 @@ async def run_crew_async(trip_id: str, inputs: Dict[str, Any]):
                 "total_steps": 3,
                 "progress": 100,
                 "message": "Trip planning completed successfully!",
-                "estimated_time_remaining": 0
+                "estimated_time_remaining": 0,
+                "debug": {
+                    "current_task": 3,
+                    "task_name": "planning_task",
+                    "assigned_agent": "Planning Agent (trip_planner)",
+                    "agent_status": "complete",
+                    "all_tasks": [
+                        {"task": "research_task", "agent": "Research Agent (trip_researcher)", "status": "complete"},
+                        {"task": "review_task", "agent": "Review Agent (trip_reviewer)", "status": "complete"},
+                        {"task": "planning_task", "agent": "Planning Agent (trip_planner)", "status": "complete"},
+                    ]
+                }
             })
             print(f"[{trip_id}] ✅ Trip planning completed successfully!")
-            print(f"{'='*60}\n")
         else:
             raise Exception(f"Output file not found at {output_file}")
             
@@ -646,6 +663,12 @@ async def create_trip(request: TripRequest, background_tasks: BackgroundTasks):
         "progress": 0,
         "message": "Initializing trip planning...",
         "estimated_time_remaining": 120,
+        "debug": {
+            "current_task": None,
+            "task_name": None,
+            "assigned_agent": None,
+            "agent_status": "waiting",
+        }
     }
     
     # Prepare inputs

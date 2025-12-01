@@ -15,6 +15,19 @@ interface ProgressData {
   progress: number
   message: string
   estimated_time_remaining?: number
+  debug?: {
+    current_task?: number
+    task_name?: string
+    assigned_agent?: string
+    agent_status?: 'waiting' | 'starting' | 'working' | 'complete'
+    elapsed_time?: number
+    remaining_time?: number
+    all_tasks?: Array<{
+      task: string
+      agent: string
+      status: string
+    }>
+  }
 }
 
 interface AgentStatus {
@@ -47,19 +60,33 @@ export default function ProgressTracker({ tripId, onComplete }: ProgressTrackerP
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
     
     // Fetch initial progress immediately
-    const fetchInitialProgress = async () => {
+    const fetchInitialProgress = async (): Promise<ProgressData | null> => {
       try {
         const response = await fetch(`${apiUrl}/api/trips/${tripId}/progress`)
         if (response.ok) {
           const data: ProgressData = await response.json()
           setProgress(data)
+          return data
         }
       } catch (err) {
         console.error('Error fetching initial progress:', err)
       }
+      return null
     }
     
-    fetchInitialProgress()
+    fetchInitialProgress().then((data) => {
+      // Log initial debug info if available
+      if (data?.debug) {
+        console.log('%c🚀 Trip Planning Started', 'color: #10b981; font-weight: bold; font-size: 14px;')
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+        console.log(`Trip ID: ${tripId}`)
+        console.log(`Status: ${data.status}`)
+        if (data.debug.task_name) {
+          console.log(`Initial Task: ${data.debug.task_name}`)
+        }
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n')
+      }
+    })
     
     // Create EventSource for SSE
     const eventSource = new EventSource(`${apiUrl}/api/trips/${tripId}/progress/stream`)
@@ -72,6 +99,26 @@ export default function ProgressTracker({ tripId, onComplete }: ProgressTrackerP
         // Ignore connection messages
         if (data.status === 'connected') {
           return
+        }
+        
+        // Log debug information to browser console
+        if (data.debug) {
+          console.log('%c🔍 Agent Debug Info', 'color: #3b82f6; font-weight: bold; font-size: 14px;')
+          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+          console.log(`📋 Task: ${data.debug.task_name || 'N/A'}`)
+          console.log(`👤 Assigned to: ${data.debug.assigned_agent || 'N/A'}`)
+          console.log(`📊 Status: ${data.debug.agent_status || 'N/A'}`)
+          console.log(`📍 Step: ${data.current_step || 0}/${data.total_steps || 3}`)
+          if (data.debug.elapsed_time !== undefined) {
+            console.log(`⏱️  Elapsed: ${data.debug.elapsed_time}s | Remaining: ~${data.debug.remaining_time || 0}s`)
+          }
+          if (data.debug.all_tasks) {
+            console.log('\n✅ All Tasks Status:')
+            data.debug.all_tasks.forEach((task, idx) => {
+              console.log(`  ${idx + 1}. ${task.task} → ${task.agent} [${task.status}]`)
+            })
+          }
+          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n')
         }
         
         setProgress(data)
@@ -108,6 +155,18 @@ export default function ProgressTracker({ tripId, onComplete }: ProgressTrackerP
         const response = await fetch(`${apiUrl}/api/trips/${tripId}/progress`)
         if (response.ok) {
           const data: ProgressData = await response.json()
+          
+          // Log debug information to browser console
+          if (data.debug) {
+            console.log('%c🔍 Agent Debug Info (Polling)', 'color: #3b82f6; font-weight: bold; font-size: 14px;')
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+            console.log(`📋 Task: ${data.debug.task_name || 'N/A'}`)
+            console.log(`👤 Assigned to: ${data.debug.assigned_agent || 'N/A'}`)
+            console.log(`📊 Status: ${data.debug.agent_status || 'N/A'}`)
+            console.log(`📍 Step: ${data.current_step || 0}/${data.total_steps || 3}`)
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n')
+          }
+          
           setProgress(data)
           
           if (data.status === 'completed') {
