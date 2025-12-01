@@ -10,15 +10,38 @@ interface ProgressTrackerProps {
 interface ProgressData {
   status: 'running' | 'completed' | 'error'
   current_agent?: string
+  current_step?: number
+  total_steps?: number
   progress: number
   message: string
   estimated_time_remaining?: number
 }
 
+interface AgentStatus {
+  id: string
+  name: string
+  icon: string
+  status: 'complete' | 'working' | 'waiting'
+  step: number
+}
+
 export default function ProgressTracker({ tripId, onComplete }: ProgressTrackerProps) {
   const [progress, setProgress] = useState<ProgressData | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [elapsedTime, setElapsedTime] = useState(0)
   const eventSourceRef = useRef<EventSource | null>(null)
+  const startTimeRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    startTimeRef.current = Date.now()
+    const interval = setInterval(() => {
+      if (startTimeRef.current) {
+        setElapsedTime(Math.floor((Date.now() - startTimeRef.current) / 1000))
+      }
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [])
 
   useEffect(() => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
@@ -112,48 +135,178 @@ export default function ProgressTracker({ tripId, onComplete }: ProgressTrackerP
     )
   }
 
-  const agentNames: Record<string, string> = {
-    trip_researcher: 'Research Agent',
-    trip_reviewer: 'Review Agent',
-    trip_planner: 'Planning Agent',
+  // Define agents with their details
+  const agents: AgentStatus[] = [
+    {
+      id: 'trip_researcher',
+      name: 'Trip Researcher',
+      icon: '🔍',
+      status: progress.current_step === undefined || progress.current_step === 0
+        ? 'waiting'
+        : progress.current_step > 1
+        ? 'complete'
+        : progress.current_agent === 'trip_researcher'
+        ? 'working'
+        : 'waiting',
+      step: 1,
+    },
+    {
+      id: 'trip_reviewer',
+      name: 'Trip Reviewer',
+      icon: '⭐',
+      status: progress.current_step === undefined || progress.current_step < 2
+        ? 'waiting'
+        : progress.current_step > 2
+        ? 'complete'
+        : progress.current_agent === 'trip_reviewer'
+        ? 'working'
+        : 'waiting',
+      step: 2,
+    },
+    {
+      id: 'trip_planner',
+      name: 'Trip Planner',
+      icon: '📋',
+      status: progress.current_step === undefined || progress.current_step < 3
+        ? 'waiting'
+        : progress.status === 'completed'
+        ? 'complete'
+        : progress.current_agent === 'trip_planner'
+        ? 'working'
+        : 'waiting',
+      step: 3,
+    },
+  ]
+
+  const currentStep = progress.current_step || 0
+  const totalSteps = progress.total_steps || 3
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Header with Step Indicator */}
+      <div className="text-center">
+        <h3 className="text-lg font-semibold text-gray-800 mb-2">
+          Planning Your Trip...
+        </h3>
+        {progress.status === 'running' && (
+          <p className="text-sm text-gray-600 mb-4">
+            Step {currentStep}/{totalSteps}: {agents.find(a => a.step === currentStep)?.name || 'Processing'}...
+          </p>
+        )}
+        {progress.status === 'completed' && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-center space-x-2 text-green-600">
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              <span className="font-medium">Trip plan generated successfully!</span>
+            </div>
+            <div className="flex items-center justify-center space-x-2 text-gray-600">
+              <span>⭐</span>
+              <span className="text-sm">Total time: {formatTime(elapsedTime)}</span>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Progress Bar */}
       <div>
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-sm font-medium text-gray-700">
-            {progress.status === 'completed' ? 'Complete!' : 'In Progress...'}
-          </span>
-          <span className="text-sm text-gray-500">{progress.progress}%</span>
-        </div>
-        <div className="w-full bg-gray-200 rounded-full h-3">
+        <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
           <div
-            className="bg-primary-600 h-3 rounded-full transition-all duration-500"
+            className="bg-gradient-to-r from-blue-500 to-purple-600 h-3 rounded-full transition-all duration-500 ease-out"
             style={{ width: `${progress.progress}%` }}
           ></div>
         </div>
       </div>
 
-      {/* Current Agent */}
-      {progress.current_agent && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <p className="text-sm font-medium text-blue-900">
-            Current Step: {agentNames[progress.current_agent] || progress.current_agent}
-          </p>
+      {/* Current Step Info */}
+      {progress.status === 'running' && progress.current_agent && (
+        <div className="bg-blue-50 border-l-4 border-blue-500 rounded-lg p-4">
+          <div className="flex items-center space-x-2">
+            <span className="text-yellow-500 text-xl">⭐</span>
+            <div>
+              <p className="text-sm font-medium text-blue-900">
+                Step {currentStep}/{totalSteps}: {agents.find(a => a.id === progress.current_agent)?.name}
+              </p>
+              <p className="text-xs text-blue-700 mt-1">{progress.message}</p>
+            </div>
+          </div>
+          {progress.estimated_time_remaining && progress.estimated_time_remaining > 0 && (
+            <div className="mt-2 flex items-center space-x-2 text-xs text-blue-600">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>Phase {currentStep}/{totalSteps} - {agents.find(a => a.step === currentStep)?.name.split(' ')[1] || 'Processing'} | Est. total: {Math.ceil((progress.estimated_time_remaining || 0) / 60)}-{Math.ceil((progress.estimated_time_remaining || 0) / 60) + 1} min</span>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Status Message */}
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-        <p className="text-sm text-gray-700">{progress.message}</p>
+      {/* Agent Status Cards */}
+      <div className="space-y-3">
+        {agents.map((agent) => (
+          <div
+            key={agent.id}
+            className={`rounded-lg p-4 border-2 transition-all duration-300 ${
+              agent.status === 'complete'
+                ? 'bg-green-50 border-green-200'
+                : agent.status === 'working'
+                ? 'bg-yellow-50 border-yellow-300 shadow-md'
+                : 'bg-gray-50 border-gray-200 opacity-60'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <span className="text-2xl">{agent.icon}</span>
+                <div>
+                  <h4 className="font-medium text-gray-900">{agent.name}</h4>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                {agent.status === 'complete' && (
+                  <>
+                    <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-sm font-medium text-green-700">Complete</span>
+                  </>
+                )}
+                {agent.status === 'working' && (
+                  <>
+                    <div className="animate-spin">
+                      <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <span className="text-sm font-medium text-yellow-700">Working...</span>
+                  </>
+                )}
+                {agent.status === 'waiting' && (
+                  <>
+                    <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-sm font-medium text-gray-500">Waiting...</span>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* Estimated Time */}
-      {progress.estimated_time_remaining && progress.estimated_time_remaining > 0 && (
-        <div className="text-sm text-gray-500">
-          Estimated time remaining: ~{Math.ceil(progress.estimated_time_remaining / 60)} minutes
+      {/* Completion Message */}
+      {progress.status === 'completed' && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+          <div className="flex items-center justify-center space-x-2 text-green-700">
+            <span className="text-2xl">⭐</span>
+            <span className="font-medium">Your trip plan is ready!</span>
+          </div>
         </div>
       )}
 
@@ -163,23 +316,6 @@ export default function ProgressTracker({ tripId, onComplete }: ProgressTrackerP
           {error}
         </div>
       )}
-
-      {/* Status Badge */}
-      <div className="flex items-center space-x-2">
-        <div
-          className={`w-3 h-3 rounded-full ${
-            progress.status === 'completed'
-              ? 'bg-green-500'
-              : progress.status === 'error'
-              ? 'bg-red-500'
-              : 'bg-blue-500 animate-pulse'
-          }`}
-        ></div>
-        <span className="text-sm font-medium text-gray-700 capitalize">
-          {progress.status}
-        </span>
-      </div>
     </div>
   )
 }
-

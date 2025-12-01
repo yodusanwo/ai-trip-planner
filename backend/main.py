@@ -357,6 +357,8 @@ async def run_crew_async(trip_id: str, inputs: Dict[str, Any]):
         # Update progress - Research phase start
         trip_progress[trip_id].update({
             "current_agent": "trip_researcher",
+            "current_step": 1,
+            "total_steps": 3,
             "progress": 10,
             "message": "Starting research agent...",
         })
@@ -364,6 +366,8 @@ async def run_crew_async(trip_id: str, inputs: Dict[str, Any]):
         
         trip_progress[trip_id].update({
             "current_agent": "trip_researcher",
+            "current_step": 1,
+            "total_steps": 3,
             "progress": 15,
             "message": "Researching destination and gathering information...",
         })
@@ -421,10 +425,26 @@ async def run_crew_async(trip_id: str, inputs: Dict[str, Any]):
             
             # Update progress every 2 seconds or if significant change
             if time.time() - last_update_time >= 2:
+                # Determine current step (1-based)
+                current_step = current_task + 1
+                total_steps = len(task_names)
+                
+                # Determine message based on current step
+                if current_step == 1:
+                    message = "Researching destination and gathering information..."
+                elif current_step == 2:
+                    message = "Reviewing and analyzing recommendations..."
+                elif current_step == 3:
+                    message = "Creating your personalized itinerary..."
+                else:
+                    message = f"{agent_name} is working... ({overall_progress}% complete)"
+                
                 trip_progress[trip_id].update({
                     "current_agent": agent_id,
+                    "current_step": current_step,
+                    "total_steps": total_steps,
                     "progress": overall_progress,
-                    "message": f"{agent_name} is working... ({overall_progress}% complete)",
+                    "message": message,
                     "estimated_time_remaining": max(0, int(total_estimated - elapsed)),
                 })
                 last_update_time = time.time()
@@ -441,6 +461,8 @@ async def run_crew_async(trip_id: str, inputs: Dict[str, Any]):
         # Update progress - Planning phase completion
         trip_progress[trip_id].update({
             "current_agent": "trip_planner",
+            "current_step": 3,
+            "total_steps": 3,
             "progress": 90,
             "message": "Processing final itinerary...",
         })
@@ -473,6 +495,8 @@ async def run_crew_async(trip_id: str, inputs: Dict[str, Any]):
             trip_progress[trip_id].update({
                 "status": "completed",
                 "current_agent": None,
+                "current_step": 3,
+                "total_steps": 3,
                 "progress": 100,
                 "message": "Trip planning completed successfully!",
                 "estimated_time_remaining": 0
@@ -528,6 +552,8 @@ async def create_trip(request: TripRequest, background_tasks: BackgroundTasks):
     trip_progress[trip_id] = {
         "status": "running",
         "current_agent": None,
+        "current_step": 0,
+        "total_steps": 3,
         "progress": 0,
         "message": "Initializing trip planning...",
         "estimated_time_remaining": 120,
