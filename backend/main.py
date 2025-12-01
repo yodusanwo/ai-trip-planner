@@ -259,21 +259,79 @@ async def get_usage(client_id: str):
     )
 
 
-def run_crew_sync(trip_id: str, crew_inputs: Dict[str, Any], result_container: Dict[str, Any]):
-    """Run CrewAI crew synchronously in a thread"""
+def run_crew_sync(trip_id: str, crew_inputs: Dict[str, Any], result_container: Dict[str, Any], progress_dict: Dict[str, Dict[str, Any]]):
+    """Run CrewAI crew synchronously with real-time progress tracking"""
     try:
         # Create crew instance
         crew_instance = TripPlanner()
         crew = crew_instance.crew()
         
-        # Run crew
         print(f"[{trip_id}] Starting crew execution...")
+        
+        # Track task execution order (sequential process)
+        tasks_completed = []
+        task_agent_map = {
+            0: ("trip_researcher", "Research Agent", 20, 45),
+            1: ("trip_reviewer", "Review Agent", 45, 70),
+            2: ("trip_planner", "Planning Agent", 70, 95),
+        }
+        
+        # Run crew with streaming if available, otherwise use regular execution
+        try:
+            # Try streaming first
+            stream_result = crew.kickoff(inputs=crew_inputs, stream=True)
+            
+            current_task_idx = 0
+            for chunk in stream_result:
+                # Parse chunk to determine current task/agent
+                chunk_str = str(chunk).lower()
+                
+                # Update based on task completion detection
+                if current_task_idx < len(task_agent_map):
+                    agent_id, agent_name, progress_start, progress_end = task_agent_map[current_task_idx]
+                    
+                    # Calculate progress within current task
+                    task_progress = progress_start + int((progress_end - progress_start) * 0.5)
+                    
+                    progress_dict[trip_id].update({
+                        "current_agent": agent_id,
+                        "progress": task_progress,
+                        "message": f"{agent_name} is working...",
+                    })
+                
+                # Check if we can detect task completion from chunk
+                if "task" in chunk_str and "complete" in chunk_str:
+                    current_task_idx += 1
+                    
+        except (TypeError, AttributeError):
+            # Streaming not available or not supported, use regular execution with monitoring
+            # Run crew in a way that allows us to monitor progress
+            import time
+            start_time = time.time()
+            
+            # Run crew (blocking)
+            result = crew.kickoff(inputs=crew_inputs)
+            
+            # Since we can't get real-time updates, we'll update progress based on elapsed time
+            # This is a fallback - the async function will handle progress updates
+            elapsed = time.time() - start_time
+            
+            result_container["result"] = result
+            result_container["success"] = True
+            result_container["elapsed_time"] = elapsed
+            print(f"[{trip_id}] Crew execution completed in {elapsed:.2f} seconds")
+            return
+        
+        # Get final result
         result = crew.kickoff(inputs=crew_inputs)
         print(f"[{trip_id}] Crew execution completed")
         result_container["result"] = result
         result_container["success"] = True
+        
     except Exception as e:
         print(f"[{trip_id}] Crew execution error: {e}")
+        import traceback
+        traceback.print_exc()
         result_container["error"] = str(e)
         result_container["success"] = False
 
@@ -311,69 +369,70 @@ async def run_crew_async(trip_id: str, inputs: Dict[str, Any]):
         })
         await asyncio.sleep(0.2)
         
-        # Start crew in a separate thread
-        result_container = {"result": None, "success": False, "error": None}
+        # Start crew in a separate thread with shared progress dictionary
+        result_container = {"result": None, "success": False, "error": None, "elapsed_time": 0}
         crew_thread = threading.Thread(
             target=run_crew_sync,
-            args=(trip_id, crew_inputs, result_container),
+            args=(trip_id, crew_inputs, result_container, trip_progress),
             daemon=True
         )
         crew_thread.start()
         
-        # Simulate progress updates during crew execution
-        # Since CrewAI runs sequentially, we estimate progress through all three agents
-        progress_stages = [
-            # Research Agent (20-45%)
-            (20, "trip_researcher", "Researching attractions and activities..."),
-            (25, "trip_researcher", "Gathering destination information..."),
-            (30, "trip_researcher", "Finding best restaurants and hotels..."),
-            (35, "trip_researcher", "Compiling travel recommendations..."),
-            (40, "trip_researcher", "Finalizing research data..."),
-            # Review Agent (45-70%)
-            (45, "trip_reviewer", "Research complete! Starting review agent..."),
-            (50, "trip_reviewer", "Reviewing and analyzing recommendations..."),
-            (55, "trip_reviewer", "Prioritizing best options..."),
-            (60, "trip_reviewer", "Evaluating quality and value..."),
-            (65, "trip_reviewer", "Refining travel suggestions..."),
-            # Planning Agent (70-95%)
-            (70, "trip_planner", "Review complete! Starting planning agent..."),
-            (75, "trip_planner", "Creating day-by-day itinerary..."),
-            (80, "trip_planner", "Structuring your trip plan..."),
-            (85, "trip_planner", "Adding times and details..."),
-            (90, "trip_planner", "Finalizing itinerary format..."),
+        # Monitor progress in real-time during crew execution
+        # Since CrewAI runs sequentially, we track progress through tasks
+        import time
+        start_time = time.time()
+        task_durations = [40, 30, 50]  # Estimated durations for each task in seconds
+        task_names = [
+            ("trip_researcher", "Research Agent"),
+            ("trip_reviewer", "Review Agent"),
+            ("trip_planner", "Planning Agent")
         ]
         
-        stage_index = 0
-        update_interval = 5  # Update every 5 seconds
-        elapsed_time = 0
+        current_task = 0
+        last_update_time = start_time
         
         while crew_thread.is_alive():
-            # Update progress through stages
-            if stage_index < len(progress_stages):
-                progress, agent, message = progress_stages[stage_index]
-                trip_progress[trip_id].update({
-                    "current_agent": agent,
-                    "progress": progress,
-                    "message": message,
-                    "estimated_time_remaining": max(0, 120 - elapsed_time),
-                })
-                stage_index += 1
+            elapsed = time.time() - start_time
+            total_estimated = sum(task_durations)
             
-            # Wait before next update
-            await asyncio.sleep(update_interval)
-            elapsed_time += update_interval
+            # Determine which task should be running based on elapsed time
+            cumulative_time = 0
+            for i, duration in enumerate(task_durations):
+                if elapsed < cumulative_time + duration:
+                    current_task = i
+                    break
+                cumulative_time += duration
+            else:
+                current_task = len(task_durations) - 1  # Last task
             
-            # If we've gone through all stages but crew is still running, show final stage
-            if stage_index >= len(progress_stages) and crew_thread.is_alive():
+            # Calculate progress within current task
+            task_start_time = sum(task_durations[:current_task])
+            task_elapsed = max(0, elapsed - task_start_time)
+            task_progress_pct = min(1.0, task_elapsed / task_durations[current_task] if current_task < len(task_durations) else 1.0)
+            
+            # Calculate overall progress
+            base_progress = [0, 33, 66][current_task] if current_task < 3 else 95
+            task_progress = int(task_progress_pct * 33)  # Each task is ~33% of total
+            overall_progress = min(95, base_progress + task_progress)
+            
+            # Get agent info
+            agent_id, agent_name = task_names[current_task] if current_task < len(task_names) else task_names[-1]
+            
+            # Update progress every 2 seconds or if significant change
+            if time.time() - last_update_time >= 2:
                 trip_progress[trip_id].update({
-                    "current_agent": "trip_planner",
-                    "progress": 95,
-                    "message": "Almost done! Finalizing your trip plan...",
-                    "estimated_time_remaining": max(0, 120 - elapsed_time),
+                    "current_agent": agent_id,
+                    "progress": overall_progress,
+                    "message": f"{agent_name} is working... ({overall_progress}% complete)",
+                    "estimated_time_remaining": max(0, int(total_estimated - elapsed)),
                 })
+                last_update_time = time.time()
+            
+            await asyncio.sleep(1)  # Check every second
         
         # Wait for thread to complete
-        crew_thread.join(timeout=1)
+        crew_thread.join(timeout=5)
         
         # Check if crew completed successfully
         if not result_container["success"]:
