@@ -7,6 +7,7 @@ import os
 import asyncio
 import uuid
 import json
+import threading
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 from pathlib import Path
@@ -258,27 +259,33 @@ async def get_usage(client_id: str):
     )
 
 
+def run_crew_sync(trip_id: str, crew_inputs: Dict[str, Any], result_container: Dict[str, Any]):
+    """Run CrewAI crew synchronously in a thread"""
+    try:
+        # Create crew instance
+        crew_instance = TripPlanner()
+        crew = crew_instance.crew()
+        
+        # Run crew
+        print(f"[{trip_id}] Starting crew execution...")
+        result = crew.kickoff(inputs=crew_inputs)
+        print(f"[{trip_id}] Crew execution completed")
+        result_container["result"] = result
+        result_container["success"] = True
+    except Exception as e:
+        print(f"[{trip_id}] Crew execution error: {e}")
+        result_container["error"] = str(e)
+        result_container["success"] = False
+
+
 async def run_crew_async(trip_id: str, inputs: Dict[str, Any]):
-    """Run CrewAI crew asynchronously"""
+    """Run CrewAI crew asynchronously with progress tracking"""
     try:
         # Check for required environment variables
         if not os.getenv('OPENAI_API_KEY'):
             raise Exception("OPENAI_API_KEY is required. Please set it in your .env file.")
         if not os.getenv('SERPER_API_KEY'):
             raise Exception("SERPER_API_KEY is required. Please set it in your .env file.")
-        
-        # Initialize progress
-        trip_progress[trip_id] = {
-            "status": "running",
-            "current_agent": "trip_researcher",
-            "progress": 0,
-            "message": "Starting trip planning...",
-            "estimated_time_remaining": 120,
-        }
-        
-        # Create crew instance
-        crew_instance = TripPlanner()
-        crew = crew_instance.crew()
         
         # Prepare inputs
         crew_inputs = {
@@ -289,58 +296,102 @@ async def run_crew_async(trip_id: str, inputs: Dict[str, Any]):
             "special_requirements": inputs.get("special_requirements", ""),
         }
         
-        # Update progress - Research phase
+        # Update progress - Research phase start
         trip_progress[trip_id].update({
             "current_agent": "trip_researcher",
             "progress": 10,
             "message": "Starting research agent...",
         })
-        await asyncio.sleep(0.1)  # Small delay to ensure update is sent
+        await asyncio.sleep(0.2)
         
         trip_progress[trip_id].update({
             "current_agent": "trip_researcher",
-            "progress": 20,
+            "progress": 15,
             "message": "Researching destination and gathering information...",
         })
-        await asyncio.sleep(0.1)  # Ensure update is sent
+        await asyncio.sleep(0.2)
         
-        # Run crew (this is blocking, so we can't update during execution)
-        # The crew will work on this task, and we'll update progress after each phase completes
-        print(f"[{trip_id}] Starting crew execution...")
-        result = crew.kickoff(inputs=crew_inputs)
-        print(f"[{trip_id}] Crew execution completed")
+        # Start crew in a separate thread
+        result_container = {"result": None, "success": False, "error": None}
+        crew_thread = threading.Thread(
+            target=run_crew_sync,
+            args=(trip_id, crew_inputs, result_container),
+            daemon=True
+        )
+        crew_thread.start()
         
-        # Update progress - Review phase
-        trip_progress[trip_id].update({
-            "current_agent": "trip_reviewer",
-            "progress": 50,
-            "message": "Research complete! Starting review agent...",
-        })
-        await asyncio.sleep(0.1)
+        # Simulate progress updates during crew execution
+        # Since CrewAI runs sequentially, we estimate progress through all three agents
+        progress_stages = [
+            # Research Agent (20-45%)
+            (20, "trip_researcher", "Researching attractions and activities..."),
+            (25, "trip_researcher", "Gathering destination information..."),
+            (30, "trip_researcher", "Finding best restaurants and hotels..."),
+            (35, "trip_researcher", "Compiling travel recommendations..."),
+            (40, "trip_researcher", "Finalizing research data..."),
+            # Review Agent (45-70%)
+            (45, "trip_reviewer", "Research complete! Starting review agent..."),
+            (50, "trip_reviewer", "Reviewing and analyzing recommendations..."),
+            (55, "trip_reviewer", "Prioritizing best options..."),
+            (60, "trip_reviewer", "Evaluating quality and value..."),
+            (65, "trip_reviewer", "Refining travel suggestions..."),
+            # Planning Agent (70-95%)
+            (70, "trip_planner", "Review complete! Starting planning agent..."),
+            (75, "trip_planner", "Creating day-by-day itinerary..."),
+            (80, "trip_planner", "Structuring your trip plan..."),
+            (85, "trip_planner", "Adding times and details..."),
+            (90, "trip_planner", "Finalizing itinerary format..."),
+        ]
         
-        trip_progress[trip_id].update({
-            "current_agent": "trip_reviewer",
-            "progress": 60,
-            "message": "Reviewing and refining recommendations...",
-        })
-        await asyncio.sleep(0.1)
+        stage_index = 0
+        update_interval = 5  # Update every 5 seconds
+        elapsed_time = 0
         
-        # Update progress - Planning phase
+        while crew_thread.is_alive():
+            # Update progress through stages
+            if stage_index < len(progress_stages):
+                progress, agent, message = progress_stages[stage_index]
+                trip_progress[trip_id].update({
+                    "current_agent": agent,
+                    "progress": progress,
+                    "message": message,
+                    "estimated_time_remaining": max(0, 120 - elapsed_time),
+                })
+                stage_index += 1
+            
+            # Wait before next update
+            await asyncio.sleep(update_interval)
+            elapsed_time += update_interval
+            
+            # If we've gone through all stages but crew is still running, show final stage
+            if stage_index >= len(progress_stages) and crew_thread.is_alive():
+                trip_progress[trip_id].update({
+                    "current_agent": "trip_planner",
+                    "progress": 95,
+                    "message": "Almost done! Finalizing your trip plan...",
+                    "estimated_time_remaining": max(0, 120 - elapsed_time),
+                })
+        
+        # Wait for thread to complete
+        crew_thread.join(timeout=1)
+        
+        # Check if crew completed successfully
+        if not result_container["success"]:
+            raise Exception(result_container.get("error", "Crew execution failed"))
+        
+        # Update progress - Planning phase completion
         trip_progress[trip_id].update({
             "current_agent": "trip_planner",
-            "progress": 70,
-            "message": "Review complete! Starting planning agent...",
+            "progress": 90,
+            "message": "Processing final itinerary...",
         })
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(0.2)
         
-        trip_progress[trip_id].update({
-            "current_agent": "trip_planner",
-            "progress": 80,
-            "message": "Creating your personalized itinerary...",
-        })
-        
-        # Read the output file
+        # Read the output file (check both relative and absolute paths)
         output_file = Path("output/trip_plan.html")
+        if not output_file.exists():
+            # Try parent directory
+            output_file = Path(__file__).parent.parent / "output" / "trip_plan.html"
         if output_file.exists():
             with open(output_file, 'r', encoding='utf-8') as f:
                 html_content = f.read()
