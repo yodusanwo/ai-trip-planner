@@ -266,15 +266,50 @@ def run_crew_sync(trip_id: str, crew_inputs: Dict[str, Any], result_container: D
         crew_instance = TripPlanner()
         crew = crew_instance.crew()
         
-        print(f"[{trip_id}] Starting crew execution...")
+        print(f"\n{'='*60}")
+        print(f"[{trip_id}] 🚀 Starting crew execution...")
+        print(f"{'='*60}")
+        
+        # Log crew configuration
+        print(f"[{trip_id}] 📋 Crew Configuration:")
+        print(f"  - Agents: {len(crew.agents)}")
+        print(f"  - Tasks: {len(crew.tasks)}")
+        print(f"  - Process: {crew.process}")
+        
+        # Log agent details
+        print(f"\n[{trip_id}] 👥 Agents:")
+        for i, agent in enumerate(crew.agents):
+            agent_name = getattr(agent, 'role', f'Agent {i+1}')
+            print(f"  {i+1}. {agent_name}")
+            print(f"     - Max Iterations: {getattr(agent, 'max_iter', 'N/A')}")
+            print(f"     - Max RPM: {getattr(agent, 'max_rpm', 'N/A')}")
+            print(f"     - Tools: {len(getattr(agent, 'tools', []))}")
+        
+        # Log task details
+        print(f"\n[{trip_id}] 📝 Tasks:")
+        task_agent_map = {
+            0: ("trip_researcher", "Research Agent", "research_task", 20, 45),
+            1: ("trip_reviewer", "Review Agent", "review_task", 45, 70),
+            2: ("trip_planner", "Planning Agent", "planning_task", 70, 95),
+        }
+        
+        for i, task in enumerate(crew.tasks):
+            task_desc = getattr(task, 'description', f'Task {i+1}')
+            assigned_agent = getattr(task, 'agent', None)
+            agent_name = getattr(assigned_agent, 'role', 'Unassigned') if assigned_agent else 'Unassigned'
+            
+            if i < len(task_agent_map):
+                agent_id, agent_display_name, task_name, _, _ = task_agent_map[i]
+                print(f"  {i+1}. {task_name} → Assigned to: {agent_display_name} ({agent_id})")
+                print(f"     Status: ⏳ Waiting")
+            else:
+                print(f"  {i+1}. {task_desc} → Assigned to: {agent_name}")
+                print(f"     Status: ⏳ Waiting")
+        
+        print(f"{'='*60}\n")
         
         # Track task execution order (sequential process)
         tasks_completed = []
-        task_agent_map = {
-            0: ("trip_researcher", "Research Agent", 20, 45),
-            1: ("trip_reviewer", "Review Agent", 45, 70),
-            2: ("trip_planner", "Planning Agent", 70, 95),
-        }
         
         # Run crew with streaming if available, otherwise use regular execution
         try:
@@ -288,7 +323,13 @@ def run_crew_sync(trip_id: str, crew_inputs: Dict[str, Any], result_container: D
                 
                 # Update based on task completion detection
                 if current_task_idx < len(task_agent_map):
-                    agent_id, agent_name, progress_start, progress_end = task_agent_map[current_task_idx]
+                    agent_id, agent_name, task_name, progress_start, progress_end = task_agent_map[current_task_idx]
+                    
+                    # Log task start
+                    if current_task_idx == 0 or "task" in chunk_str:
+                        print(f"\n[{trip_id}] 🔄 Task {current_task_idx + 1}/3: {task_name}")
+                        print(f"  → Assigned to: {agent_name} ({agent_id})")
+                        print(f"  → Status: 🔄 Working...")
                     
                     # Calculate progress within current task
                     task_progress = progress_start + int((progress_end - progress_start) * 0.5)
@@ -301,30 +342,47 @@ def run_crew_sync(trip_id: str, crew_inputs: Dict[str, Any], result_container: D
                 
                 # Check if we can detect task completion from chunk
                 if "task" in chunk_str and "complete" in chunk_str:
+                    if current_task_idx < len(task_agent_map):
+                        agent_id, agent_name, task_name, _, _ = task_agent_map[current_task_idx]
+                        print(f"[{trip_id}] ✅ Task {current_task_idx + 1}/3: {task_name} - COMPLETE")
+                        print(f"  → Agent: {agent_name} ({agent_id})")
+                        print(f"  → Status: ✅ Complete")
                     current_task_idx += 1
                     
         except (TypeError, AttributeError):
             # Streaming not available or not supported, use regular execution with monitoring
-            # Run crew in a way that allows us to monitor progress
+            print(f"[{trip_id}] ⚠️  Streaming not available, using regular execution")
             import time
             start_time = time.time()
             
+            # Log each task before execution
+            print(f"\n[{trip_id}] 📋 Executing tasks sequentially:")
+            for i, task in enumerate(crew.tasks):
+                if i < len(task_agent_map):
+                    agent_id, agent_name, task_name, _, _ = task_agent_map[i]
+                    print(f"  {i+1}. {task_name} → {agent_name} ({agent_id})")
+            
             # Run crew (blocking)
+            print(f"\n[{trip_id}] 🚀 Starting crew.kickoff()...")
             result = crew.kickoff(inputs=crew_inputs)
             
             # Since we can't get real-time updates, we'll update progress based on elapsed time
             # This is a fallback - the async function will handle progress updates
             elapsed = time.time() - start_time
             
+            print(f"\n[{trip_id}] ✅ Crew execution completed in {elapsed:.2f} seconds")
+            print(f"[{trip_id}] 📊 All tasks completed successfully")
+            
             result_container["result"] = result
             result_container["success"] = True
             result_container["elapsed_time"] = elapsed
-            print(f"[{trip_id}] Crew execution completed in {elapsed:.2f} seconds")
             return
         
-        # Get final result
+        # Get final result (if streaming was used)
+        print(f"\n[{trip_id}] 🔄 Getting final result...")
         result = crew.kickoff(inputs=crew_inputs)
-        print(f"[{trip_id}] Crew execution completed")
+        print(f"[{trip_id}] ✅ Crew execution completed")
+        print(f"[{trip_id}] 📊 All tasks completed successfully")
         result_container["result"] = result
         result_container["success"] = True
         
@@ -355,6 +413,11 @@ async def run_crew_async(trip_id: str, inputs: Dict[str, Any]):
         }
         
         # Update progress - Research phase start
+        print(f"\n[{trip_id}] 🎯 Initializing Step 1/3: Research Task")
+        print(f"  → Task: research_task")
+        print(f"  → Assigned to: Research Agent (trip_researcher)")
+        print(f"  → Status: 🔄 Starting...")
+        
         trip_progress[trip_id].update({
             "current_agent": "trip_researcher",
             "current_step": 1,
@@ -371,6 +434,7 @@ async def run_crew_async(trip_id: str, inputs: Dict[str, Any]):
             "progress": 15,
             "message": "Researching destination and gathering information...",
         })
+        print(f"[{trip_id}]  → Status: 🔄 Working...")
         await asyncio.sleep(0.2)
         
         # Start crew in a separate thread with shared progress dictionary
@@ -439,6 +503,16 @@ async def run_crew_async(trip_id: str, inputs: Dict[str, Any]):
                 else:
                     message = f"{agent_name} is working... ({overall_progress}% complete)"
                 
+                # Debug logging
+                task_name = task_names[current_task][1] if current_task < len(task_names) else "Unknown"
+                print(f"[{trip_id}] 📊 Progress Update:")
+                print(f"  → Step: {current_step}/{total_steps}")
+                print(f"  → Task: {task_name}")
+                print(f"  → Agent: {agent_name} ({agent_id})")
+                print(f"  → Status: 🔄 Working")
+                print(f"  → Progress: {overall_progress}%")
+                print(f"  → Elapsed: {int(elapsed)}s | Remaining: ~{int(total_estimated - elapsed)}s")
+                
                 trip_progress[trip_id].update({
                     "current_agent": agent_id,
                     "current_step": current_step,
@@ -459,6 +533,11 @@ async def run_crew_async(trip_id: str, inputs: Dict[str, Any]):
             raise Exception(result_container.get("error", "Crew execution failed"))
         
         # Update progress - Planning phase completion
+        print(f"\n[{trip_id}] 🎯 Finalizing Step 3/3: Planning Task")
+        print(f"  → Task: planning_task")
+        print(f"  → Assigned to: Planning Agent (trip_planner)")
+        print(f"  → Status: 🔄 Processing final itinerary...")
+        
         trip_progress[trip_id].update({
             "current_agent": "trip_planner",
             "current_step": 3,
@@ -492,6 +571,12 @@ async def run_crew_async(trip_id: str, inputs: Dict[str, Any]):
             print(f"[{trip_id}] Stored result ({len(html_content)} characters)")
             
             # Update progress - Complete
+            print(f"\n[{trip_id}] ✅ All Tasks Completed Successfully!")
+            print(f"  → Task 1: research_task → ✅ Complete (Research Agent)")
+            print(f"  → Task 2: review_task → ✅ Complete (Review Agent)")
+            print(f"  → Task 3: planning_task → ✅ Complete (Planning Agent)")
+            print(f"  → Final Status: ✅ All agents completed")
+            
             trip_progress[trip_id].update({
                 "status": "completed",
                 "current_agent": None,
@@ -502,12 +587,16 @@ async def run_crew_async(trip_id: str, inputs: Dict[str, Any]):
                 "estimated_time_remaining": 0
             })
             print(f"[{trip_id}] ✅ Trip planning completed successfully!")
+            print(f"{'='*60}\n")
         else:
             raise Exception(f"Output file not found at {output_file}")
             
     except Exception as e:
         error_msg = str(e)
-        print(f"[{trip_id}] ❌ Error: {error_msg}")
+        print(f"\n[{trip_id}] ❌ ERROR OCCURRED!")
+        print(f"  → Error Message: {error_msg}")
+        print(f"  → Status: ❌ Failed")
+        print(f"{'='*60}\n")
         trip_progress[trip_id].update({
             "status": "error",
             "message": f"Error: {error_msg}",
