@@ -153,64 +153,98 @@ def update_usage(client_id: str):
     usage_store[client_id]["cost"] += COST_PER_REQUEST
 
 
+def update_progress(trip_id: str, agent: str, percentage: int, message: str, time_remaining: int):
+    """Helper function to update progress"""
+    trip_progress[trip_id].update({
+        "current_agent": agent,
+        "progress_percentage": percentage,
+        "message": message,
+        "estimated_time_remaining": time_remaining
+    })
+    print(f"[{trip_id}] Progress: {percentage}% - {agent} - {message}")
+
+
 async def run_crew_async(trip_id: str, inputs: Dict[str, Any]):
-    """Run CrewAI agents asynchronously and update progress"""
+    """Run CrewAI agents asynchronously and update progress with real-time tracking"""
     try:
         # Initialize progress
         trip_progress[trip_id] = {
             "status": "running",
             "current_agent": "researcher",
-            "progress_percentage": 0,
-            "message": "Starting trip research...",
-            "estimated_time_remaining": 180  # 3 minutes estimate
+            "progress_percentage": 5,
+            "message": "Initializing AI agents...",
+            "estimated_time_remaining": 180
         }
         
-        # Simulate progress updates (in real implementation, hook into CrewAI callbacks)
-        await asyncio.sleep(2)
-        trip_progress[trip_id].update({
-            "current_agent": "researcher",
-            "progress_percentage": 20,
-            "message": "Researching destinations and attractions...",
-            "estimated_time_remaining": 150
-        })
+        print(f"[{trip_id}] Starting trip planning for {inputs.get('destination')}")
         
-        # Run the actual CrewAI crew
+        # Update: Starting researcher
+        await asyncio.sleep(1)
+        update_progress(trip_id, "researcher", 10, "Trip Researcher starting...", 170)
+        
+        # Run CrewAI in executor with progress monitoring
         loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(
-            None,
-            lambda: TripPlanner().crew().kickoff(inputs=inputs)
-        )
+        start_time = time.time()
         
-        # Update progress - Researcher done
-        trip_progress[trip_id].update({
-            "current_agent": "reviewer",
-            "progress_percentage": 40,
-            "message": "Reviewing travel information...",
-            "estimated_time_remaining": 100
-        })
-        await asyncio.sleep(1)
+        # Create a wrapper to run CrewAI and monitor progress
+        def run_crew_with_monitoring():
+            try:
+                print(f"[{trip_id}] Executing CrewAI crew...")
+                crew = TripPlanner().crew()
+                result = crew.kickoff(inputs=inputs)
+                print(f"[{trip_id}] CrewAI execution completed")
+                return result
+            except Exception as e:
+                print(f"[{trip_id}] CrewAI error: {str(e)}")
+                raise
         
-        # Update progress - Reviewer working
-        trip_progress[trip_id].update({
-            "current_agent": "reviewer",
-            "progress_percentage": 60,
-            "message": "Analyzing recommendations...",
-            "estimated_time_remaining": 60
-        })
-        await asyncio.sleep(1)
+        # Start CrewAI execution
+        crew_task = loop.run_in_executor(None, run_crew_with_monitoring)
         
-        # Update progress - Planner working
-        trip_progress[trip_id].update({
-            "current_agent": "planner",
-            "progress_percentage": 80,
-            "message": "Creating your itinerary...",
-            "estimated_time_remaining": 30
-        })
+        # Monitor progress while CrewAI runs
+        last_update = time.time()
+        progress_stages = [
+            (15, "researcher", "Researching destinations and attractions...", 160),
+            (25, "researcher", "Finding the best activities and experiences...", 140),
+            (35, "researcher", "Gathering local insights and recommendations...", 120),
+            (45, "reviewer", "Trip Reviewer analyzing research...", 100),
+            (55, "reviewer", "Evaluating quality and suitability...", 80),
+            (65, "reviewer", "Ranking top recommendations...", 60),
+            (75, "planner", "Trip Planner creating itinerary...", 45),
+            (85, "planner", "Organizing daily schedules...", 25),
+            (95, "planner", "Finalizing your personalized trip plan...", 10),
+        ]
+        
+        stage_idx = 0
+        check_interval = 10  # Check every 10 seconds
+        
+        while not crew_task.done():
+            await asyncio.sleep(check_interval)
+            elapsed = time.time() - start_time
+            
+            # Update progress based on elapsed time (estimate 2-3 minutes total)
+            if stage_idx < len(progress_stages) and elapsed > (stage_idx + 1) * 15:
+                percentage, agent, message, time_remaining = progress_stages[stage_idx]
+                update_progress(trip_id, agent, percentage, message, time_remaining)
+                stage_idx += 1
+        
+        # Wait for CrewAI to complete
+        result = await crew_task
+        elapsed_time = time.time() - start_time
+        print(f"[{trip_id}] CrewAI completed in {elapsed_time:.1f} seconds")
+        
+        # Update: Processing results
+        update_progress(trip_id, "planner", 98, "Processing results...", 5)
         await asyncio.sleep(1)
         
         # Read the output file
         output_file = Path(__file__).parent.parent / "trip_planner" / "output" / "trip_plan.html"
+        
+        # Wait a moment for file to be fully written
+        await asyncio.sleep(2)
+        
         if output_file.exists():
+            print(f"[{trip_id}] Reading output file: {output_file}")
             with open(output_file, 'r', encoding='utf-8') as f:
                 html_content = f.read()
             
@@ -226,6 +260,7 @@ async def run_crew_async(trip_id: str, inputs: Dict[str, Any]):
             
             # Store result
             trip_results[trip_id] = html_content
+            print(f"[{trip_id}] Stored result ({len(html_content)} characters)")
             
             # Update progress - Complete
             trip_progress[trip_id].update({
@@ -235,14 +270,20 @@ async def run_crew_async(trip_id: str, inputs: Dict[str, Any]):
                 "message": "Trip plan ready!",
                 "estimated_time_remaining": 0
             })
+            print(f"[{trip_id}] ✅ Trip planning completed successfully!")
         else:
-            raise Exception("Output file not found")
+            raise Exception(f"Output file not found at {output_file}")
             
     except Exception as e:
+        print(f"[{trip_id}] ❌ Error during trip planning: {str(e)}")
+        import traceback
+        traceback.print_exc()
         trip_progress[trip_id].update({
             "status": "error",
             "message": f"Error: {str(e)}",
-            "progress_percentage": 0
+            "progress_percentage": 0,
+            "current_agent": None,
+            "estimated_time_remaining": 0
         })
 
 
