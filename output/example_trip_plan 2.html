@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paris Trip Itinerary - 5 Days</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 60px 40px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .header p {
+            font-size: 1.3em;
+            opacity: 0.95;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .overview {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 40px;
+            border-left: 5px solid #667eea;
+        }
+        
+        .overview h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 2em;
+        }
+        
+        .day-section {
+            margin-bottom: 50px;
+            border: 2px solid #e9ecef;
+            border-radius: 15px;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+        
+        .day-section:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .day-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px 30px;
+            font-size: 1.8em;
+            font-weight: bold;
+        }
+        
+        .day-content {
+            padding: 30px;
+        }
+        
+        .activity {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .activity:last-child {
+            margin-bottom: 0;
+        }
+        
+        .time {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+        }
+        
+        .activity-title {
+            font-size: 1.4em;
+            color: #333;
+            margin: 10px 0;
+            font-weight: 600;
+        }
+        
+        .activity-description {
+            color: #666;
+            margin: 10px 0;
+            line-height: 1.8;
+        }
+        
+        .cost {
+            display: inline-block;
+            background: #28a745;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+        
+        .meal {
+            background: #fff3cd;
+            border-left-color: #ffc107;
+        }
+        
+        .budget-section {
+            background: #e7f3ff;
+            padding: 30px;
+            border-radius: 15px;
+            margin: 40px 0;
+        }
+        
+        .budget-section h2 {
+            color: #0066cc;
+            margin-bottom: 20px;
+            font-size: 2em;
+        }
+        
+        .budget-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px 0;
+            border-bottom: 1px solid #ccc;
+            font-size: 1.1em;
+        }
+        
+        .budget-item:last-child {
+            border-bottom: none;
+            font-weight: bold;
+            font-size: 1.3em;
+            color: #0066cc;
+        }
+        
+        .tips-section {
+            background: #d4edda;
+            padding: 30px;
+            border-radius: 15px;
+            margin: 40px 0;
+        }
+        
+        .tips-section h2 {
+            color: #155724;
+            margin-bottom: 20px;
+            font-size: 2em;
+        }
+        
+        .tip {
+            padding: 15px 0;
+            border-bottom: 1px solid #c3e6cb;
+        }
+        
+        .tip:last-child {
+            border-bottom: none;
+        }
+        
+        .tip strong {
+            color: #155724;
+        }
+        
+        .footer {
+            background: #343a40;
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .icon {
+            font-size: 1.2em;
+            margin-right: 8px;
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .content {
+                padding: 20px;
+            }
+            
+            .day-header {
+                font-size: 1.4em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🗼 Paris, France</h1>
+            <p>5-Day Magical Journey Through the City of Light</p>
+            <p style="margin-top: 10px; font-size: 1em;">November 2025</p>
+        </div>
+        
+        <div class="content">
+            <div class="overview">
+                <h2>✨ Trip Overview</h2>
+                <p>
+                    Welcome to your personalized Paris itinerary! This 5-day journey will take you through 
+                    the most iconic landmarks, hidden gems, and culinary delights of the French capital. 
+                    From the Eiffel Tower to charming Montmartre, from world-class museums to cozy bistros, 
+                    this itinerary balances must-see attractions with authentic local experiences.
+                </p>
+                <p style="margin-top: 15px;">
+                    <strong>Best Time:</strong> Spring (April-June) and Fall (September-November) offer pleasant weather and fewer crowds.<br>
+                    <strong>Currency:</strong> Euro (€)<br>
+                    <strong>Language:</strong> French (English widely spoken in tourist areas)
+                </p>
+            </div>
+            
+            <!-- Day 1 -->
+            <div class="day-section">
+                <div class="day-header">
+                    📅 Day 1 - Arrival & Iconic Paris
+                </div>
+                <div class="day-content">
+                    <div class="activity meal">
+                        <span class="time">⏰ 8:00 AM</span>
+                        <div class="activity-title">🥐 Breakfast at Hotel</div>
+                        <div class="activity-description">
+                            Start your day with a classic French breakfast featuring croissants, pain au chocolat, 
+                            fresh baguette with butter and jam, and café au lait.
+                        </div>
+                        <span class="cost">💰 €15</span>
+                    </div>
+                    
+                    <div class="activity">
+                        <span class="time">⏰ 10:00 AM</span>
+                        <div class="activity-title">🗼 Eiffel Tower Visit</div>
+                        <div class="activity-description">
+                            Begin your Paris adventure at the iconic Eiffel Tower. Book tickets in advance to skip 
+                            the lines. Take the elevator to the summit for breathtaking 360° views of Paris. 
+                            Allow 2-3 hours for the full experience including photo opportunities at Trocadéro Gardens.
+                        </div>
+                        <span class="cost">💰 €28 (Summit access)</span>
+                    </div>
+                    
+                    <div class="activity meal">
+                        <span class="time">⏰ 1:00 PM</span>
+                        <div class="activity-title">🍽️ Lunch at Café de l'Homme</div>
+                        <div class="activity-description">
+                            Enjoy lunch with a spectacular view of the Eiffel Tower. Try classic French dishes 
+                            like steak frites or coq au vin. Reservations recommended.
+                        </div>
+                        <span class="cost">💰 €45</span>
+                    </div>
+                    
+                    <div class="activity">
+                        <span class="time">⏰ 3:00 PM</span>
+                        <div class="activity-title">🚢 Seine River Cruise</div>
+                        <div class="activity-description">
+                            Take a relaxing 1-hour cruise along the Seine River. See Paris's most beautiful monuments 
+                            from a unique perspective: Notre-Dame, Louvre, Musée d'Orsay, and more. Audio guide included.
+                        </div>
+                        <span class="cost">💰 €15</span>
+                    </div>
+                    
+                    <div class="activity">
+                        <span class="time">⏰ 5:00 PM</span>
+                        <div class="activity-title">🎨 Stroll Through Le Marais</div>
+                        <div class="activity-description">
+                            Explore the charming Le Marais district with its narrow medieval streets, trendy boutiques, 
+                            art galleries, and historic mansions. Visit Place des Vosges, Paris's oldest planned square.
+                        </div>
+                        <span class="cost">💰 Free</span>
+                    </div>
+                    
+                    <div class="activity meal">
+                        <span class="time">⏰ 8:00 PM</span>
+                        <div class="activity-title">🍷 Dinner at L'As du Fallafel</div>
+                        <div class="activity-description">
+                            Experience the best falafel in Paris at this legendary spot in the Marais. 
+                            Casual dining, often with a queue, but absolutely worth it!
+                        </div>
+                        <span class="cost">💰 €12</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Day 2 -->
+            <div class="day-section">
+                <div class="day-header">
+                    📅 Day 2 - Art & Culture
+                </div>
+                <div class="day-content">
+                    <div class="activity meal">
+                        <span class="time">⏰ 8:30 AM</span>
+                        <div class="activity-title">☕ Breakfast at Café de Flore</div>
+                        <div class="activity-description">
+                            Enjoy breakfast at this historic café in Saint-Germain-des-Prés, once frequented 
+                            by Sartre and Hemingway. Perfect people-watching spot.
+                        </div>
+                        <span class="cost">💰 €20</span>
+                    </div>
+                    
+                    <div class="activity">
+                        <span class="time">⏰ 9:30 AM</span>
+                        <div class="activity-title">🖼️ Louvre Museum</div>
+                        <div class="activity-description">
+                            Spend the morning at the world's largest art museum. Don't miss the Mona Lisa, 
+                            Venus de Milo, and Winged Victory. Book timed entry tickets online. Plan for 3-4 hours 
+                            minimum. Consider a guided tour to see highlights efficiently.
+                        </div>
+                        <span class="cost">💰 €17 (+ €15 optional guided tour)</span>
+                    </div>
+                    
+                    <div class="activity meal">
+                        <span class="time">⏰ 1:30 PM</span>
+                        <div class="activity-title">🥗 Lunch at Angelina</div>
+                        <div class="activity-description">
+                            Famous for its hot chocolate and Mont-Blanc dessert. Located near the Louvre, 
+                            perfect for a elegant lunch break. Try their signature dishes.
+                        </div>
+                        <span class="cost">💰 €35</span>
+                    </div>
+                    
+                    <div class="activity">
+                        <span class="time">⏰ 3:30 PM</span>
+                        <div class="activity-title">🌳 Tuileries Garden & Place de la Concorde</div>
+                        <div class="activity-description">
+                            Stroll through the beautiful Tuileries Garden, relax by the fountains, and walk to 
+                            Place de la Concorde. Continue up the Champs-Élysées for shopping and sightseeing.
+                        </div>
+                        <span class="cost">💰 Free</span>
+                    </div>
+                    
+                    <div class="activity">
+                        <span class="time">⏰ 6:00 PM</span>
+                        <div class="activity-title">🏛️ Arc de Triomphe</div>
+                        <div class="activity-description">
+                            Climb to the top of the Arc de Triomphe for stunning sunset views over Paris and 
+                            the Champs-Élysées. The view is especially magical as the city lights begin to glow.
+                        </div>
+                        <span class="cost">💰 €13</span>
+                    </div>
+                    
+                    <div class="activity meal">
+                        <span class="time">⏰ 8:30 PM</span>
+                        <div class="activity-title">🍴 Dinner at Le Relais de l'Entrecôte</div>
+                        <div class="activity-description">
+                            No menu here - just perfectly cooked steak-frites with their secret sauce, served with 
+                            unlimited fries. Simple, delicious, and very Parisian. No reservations, expect a queue.
+                        </div>
+                        <span class="cost">💰 €30</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Day 3 -->
+            <div class="day-section">
+                <div class="day-header">
+                    📅 Day 3 - Montmartre & Sacré-Cœur
+                </div>
+                <div class="day-content">
+                    <div class="activity meal">
+                        <span class="time">⏰ 9:00 AM</span>
+                        <div class="activity-title">🥐 Breakfast at Local Boulangerie</div>
+                        <div class="activity-description">
+                            Grab fresh pastries from a neighborhood bakery in Montmartre. Try a pain aux raisins 
+                            or chausson aux pommes with your coffee.
+                        </div>
+                        <span class="cost">💰 €8</span>
+                    </div>
+                    
+                    <div class="activity">
+                        <span class="time">⏰ 10:00 AM</span>
+                        <div class="activity-title">⛪ Sacré-Cœur Basilica</div>
+                        <div class="activity-description">
+                            Visit the stunning white basilica atop Montmartre hill. Free entry to the basilica, 
+                            but pay to climb the dome for panoramic views. Arrive early to avoid crowds and enjoy 
+                            the peaceful atmosphere.
+                        </div>
+                        <span class="cost">💰 €6 (dome access)</span>
+                    </div>
+                    
+                    <div class="activity">
+                        <span class="time">⏰ 11:30 AM</span>
+                        <div class="activity-title">🎨 Montmartre Walking Tour</div>
+                        <div class="activity-description">
+                            Explore the artistic neighborhood of Montmartre. See Place du Tertre with its artists, 
+                            the Moulin Rouge, Café des Deux Moulins (from Amélie), and charming cobblestone streets. 
+                            This area inspired countless artists including Picasso and Van Gogh.
+                        </div>
+                        <span class="cost">💰 Free (self-guided)</span>
+                    </div>
+                    
+                    <div class="activity meal">
+                        <span class="time">⏰ 1:00 PM</span>
+                        <div class="activity-title">🍷 Lunch at La Maison Rose</div>
+                        <div class="activity-description">
+                            Dine at this iconic pink restaurant, a favorite subject of painters. Enjoy traditional 
+                            French cuisine in a charming setting. Reservations recommended.
+                        </div>
+                        <span class="cost">💰 €40</span>
+                    </div>
+                    
+                    <div class="activity">
+                        <span class="time">⏰ 3:00 PM</span>
+                        <div class="activity-title">🎭 Musée d'Orsay</div>
+                        <div class="activity-description">
+                            Spend the afternoon at this magnificent museum housed in a former railway station. 
+                            Home to the world's finest collection of Impressionist art including works by Monet, 
+                            Renoir, Degas, and Van Gogh.
+                        </div>
+                        <span class="cost">💰 €16</span>
+                    </div>
+                    
+                    <div class="activity meal">
+                        <span class="time">⏰ 7:00 PM</span>
+                        <div class="activity-title">🧀 Dinner at Bouillon Chartier</div>
+                        <div class="activity-description">
+                            Experience a historic Parisian bouillon - a traditional workers' restaurant with 
+                            Belle Époque decor. Affordable, authentic French cuisine in a bustling atmosphere. 
+                            Try the escargots and boeuf bourguignon.
+                        </div>
+                        <span class="cost">💰 €25</span>
+                    </div>
+                    
+                    <div class="activity">
+                        <span class="time">⏰ 9:00 PM</span>
+                        <div class="activity-title">✨ Eiffel Tower Light Show</div>
+                        <div class="activity-description">
+                            Return to the Eiffel Tower to see it sparkle! Every hour on the hour after sunset, 
+                            the tower lights up with thousands of twinkling lights for 5 minutes. Best viewed 
+                            from Trocadéro or Champ de Mars.
+                        </div>
+                        <span class="cost">💰 Free</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Budget Section -->
+            <div class="budget-section">
+                <h2>💰 Budget Breakdown</h2>
+                <div class="budget-item">
+                    <span>Accommodation (5 nights, mid-range hotel)</span>
+                    <span>€500</span>
+                </div>
+                <div class="budget-item">
+                    <span>Meals & Dining</span>
+                    <span>€400</span>
+                </div>
+                <div class="budget-item">
+                    <span>Attractions & Activities</span>
+                    <span>€150</span>
+                </div>
+                <div class="budget-item">
+                    <span>Transportation (Metro passes & airport transfer)</span>
+                    <span>€80</span>
+                </div>
+                <div class="budget-item">
+                    <span>Miscellaneous (souvenirs, snacks, tips)</span>
+                    <span>€120</span>
+                </div>
+                <div class="budget-item">
+                    <span><strong>Total Estimated Cost</strong></span>
+                    <span><strong>€1,250</strong></span>
+                </div>
+            </div>
+            
+            <!-- Tips Section -->
+            <div class="tips-section">
+                <h2>💡 Essential Travel Tips</h2>
+                <div class="tip">
+                    <strong>🎫 Paris Museum Pass:</strong> Consider buying a 2, 4, or 6-day museum pass for unlimited 
+                    access to 60+ museums and monuments. Great value if you plan to visit multiple sites.
+                </div>
+                <div class="tip">
+                    <strong>🚇 Transportation:</strong> Buy a Navigo Découverte pass or carnet of 10 Metro tickets. 
+                    The Metro is the fastest way to get around. Download the RATP app for real-time information.
+                </div>
+                <div class="tip">
+                    <strong>🕐 Timing:</strong> Most museums are closed on Mondays or Tuesdays. Book major attractions 
+                    online in advance to skip lines. Visit popular sites early morning or late afternoon.
+                </div>
+                <div class="tip">
+                    <strong>🗣️ Language:</strong> Learn basic French phrases - "Bonjour," "Merci," "S'il vous plaît." 
+                    Parisians appreciate the effort, even if you switch to English afterward.
+                </div>
+                <div class="tip">
+                    <strong>💳 Money:</strong> Credit cards widely accepted. Always carry some cash for small cafés 
+                    and markets. Tipping is not obligatory but rounding up is appreciated.
+                </div>
+                <div class="tip">
+                    <strong>🎒 Packing:</strong> Comfortable walking shoes are essential! Pack layers as weather 
+                    can be unpredictable. Bring a reusable water bottle - Paris tap water is safe and delicious.
+                </div>
+                <div class="tip">
+                    <strong>⚠️ Safety:</strong> Watch for pickpockets in tourist areas and on Metro. Keep valuables 
+                    secure. Be cautious of street scams (petition signers, ring finders, etc.).
+                </div>
+                <div class="tip">
+                    <strong>📞 Emergency Contacts:</strong> European Emergency Number: 112 | Police: 17 | 
+                    Medical Emergency (SAMU): 15 | Fire: 18 | US Embassy: +33 1 43 12 22 22
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>🌟 Have an amazing trip to Paris! 🌟</p>
+            <p style="margin-top: 10px; font-size: 0.9em;">
+                Generated by TripPlanner AI Crew | Bon Voyage! 🗼✈️
+            </p>
+        </div>
+    </div>
+</body>
+</html>
+

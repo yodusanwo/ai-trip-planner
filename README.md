@@ -1,6 +1,23 @@
 # ✈️ AI Trip Planner
 
-An intelligent trip planning application powered by CrewAI and Streamlit. Plan your perfect trip with AI agents that research destinations, review recommendations, and create beautiful day-by-day itineraries.
+An intelligent trip planning application powered by CrewAI. Plan your perfect trip with AI agents that research destinations, review recommendations, and create beautiful day-by-day itineraries.
+
+## 🏗️ Architecture
+
+This project now supports **two architectures**:
+
+1. **Next.js + FastAPI** (Recommended) - Modern, production-ready architecture
+   - FastAPI backend with REST API and SSE
+   - Next.js frontend with TypeScript and Tailwind CSS
+   - Real-time progress tracking
+   - Ready for Vercel + Railway deployment
+
+2. **Streamlit** (Legacy) - Simple, single-file application
+   - Streamlit-based UI
+   - All-in-one Python application
+   - Easy to run locally
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed architecture documentation.
 
 ## 🌟 Features
 
@@ -15,10 +32,11 @@ An intelligent trip planning application powered by CrewAI and Streamlit. Plan y
   - Configurable agent iterations and rate limits
 
 - **🎨 Beautiful Interface**:
-  - Modern Streamlit web UI
-  - Real-time progress tracking
+  - Modern Next.js web UI (TypeScript + Tailwind CSS)
+  - Real-time progress tracking with Server-Sent Events (SSE)
   - Dynamic agent status updates
-  - Responsive design
+  - Fully responsive design
+  - Legacy Streamlit UI also available
 
 - **📄 Professional Output**:
   - Styled HTML itineraries
@@ -34,13 +52,15 @@ An intelligent trip planning application powered by CrewAI and Streamlit. Plan y
 
 ## 🚀 Quick Start
 
-### Prerequisites
+### Option 1: Next.js + FastAPI (Recommended)
 
+#### Prerequisites
 - Python 3.10-3.13
+- Node.js 18+ and npm
 - OpenAI API key
 - Serper API key (for web search)
 
-### Installation
+#### Installation
 
 1. **Clone the repository:**
 ```bash
@@ -48,23 +68,61 @@ git clone https://github.com/Zora-Digital/trip_planner.git
 cd trip_planner
 ```
 
-2. **Install dependencies:**
+2. **Set up backend:**
 ```bash
+cd backend
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
-# or
-uv sync
 ```
 
-3. **Set up environment variables:**
+3. **Set up frontend:**
+```bash
+cd ../frontend
+npm install
+```
 
-Create a `.env` file:
+4. **Set up environment variables:**
+
+Create a `.env` file in the root directory:
+```env
+OPENAI_API_KEY=your-openai-api-key
+SERPER_API_KEY=your-serper-api-key
+```
+
+5. **Run the application:**
+
+Terminal 1 (Backend):
+```bash
+cd backend
+source venv/bin/activate
+python main.py
+```
+
+Terminal 2 (Frontend):
+```bash
+cd frontend
+npm run dev
+```
+
+- Backend API: `http://localhost:8000`
+- Frontend App: `http://localhost:3000`
+
+### Option 2: Streamlit (Legacy)
+
+1. **Install dependencies:**
+```bash
+pip install -r requirements.txt
+```
+
+2. **Set up environment variables:**
 ```env
 OPENAI_API_KEY=your-openai-api-key
 SERPER_API_KEY=your-serper-api-key
 MODEL=gpt-4o-mini
 ```
 
-4. **Run the Streamlit app:**
+3. **Run the Streamlit app:**
 ```bash
 streamlit run app.py
 ```
@@ -133,7 +191,21 @@ max_rpm=30    # Higher RPM = faster API calls
 
 ## 🚢 Deployment
 
-### Streamlit Cloud
+### Next.js + FastAPI (Recommended)
+
+**Backend (Railway):**
+1. Deploy backend to Railway
+2. Set root directory to `backend`
+3. Add environment variables (OPENAI_API_KEY, SERPER_API_KEY)
+
+**Frontend (Vercel):**
+1. Deploy frontend to Vercel
+2. Set root directory to `frontend`
+3. Add environment variable: `NEXT_PUBLIC_API_URL` (your Railway backend URL)
+
+See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for detailed instructions.
+
+### Streamlit Cloud (Legacy)
 
 1. Push to GitHub
 2. Go to [share.streamlit.io](https://share.streamlit.io)
@@ -157,22 +229,39 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed instructions.
 
 ```
 trip_planner/
-├── app.py                          # Streamlit frontend
-├── security_config.py              # Security settings
+├── backend/                        # FastAPI backend
+│   ├── main.py                    # FastAPI application
+│   ├── requirements.txt           # Python dependencies
+│   ├── railway.json               # Railway deployment config
+│   └── Procfile                   # Railway process file
+├── frontend/                      # Next.js frontend
+│   ├── app/                       # Next.js app directory
+│   │   ├── page.tsx              # Main page
+│   │   ├── layout.tsx            # Root layout
+│   │   └── globals.css           # Global styles
+│   ├── components/               # React components
+│   │   ├── TripForm.tsx         # Trip planning form
+│   │   ├── ProgressTracker.tsx # Real-time progress
+│   │   ├── TripResult.tsx       # Result display
+│   │   └── UsageStats.tsx        # Usage statistics
+│   ├── package.json             # Node dependencies
+│   ├── tailwind.config.ts       # Tailwind config
+│   └── vercel.json              # Vercel deployment config
+├── app.py                        # Streamlit frontend (legacy)
+├── security_config.py            # Security settings
 ├── src/trip_planner/
-│   ├── crew.py                     # CrewAI configuration
+│   ├── crew.py                   # CrewAI configuration
 │   ├── config/
-│   │   ├── agents.yaml            # Agent definitions
-│   │   └── tasks.yaml             # Task definitions
+│   │   ├── agents.yaml          # Agent definitions
+│   │   └── tasks.yaml           # Task definitions
 │   └── tools/
-│       └── custom_tool.py         # Custom tools
-├── .streamlit/
-│   ├── config.toml                # Streamlit config
-│   └── secrets.toml.example       # Secrets template
-├── output/                         # Generated trip plans
-├── requirements.txt               # Python dependencies
-├── SECURITY.md                    # Security documentation
-└── DEPLOYMENT.md                  # Deployment guide
+│       └── custom_tool.py       # Custom tools
+├── output/                       # Generated trip plans
+├── requirements.txt             # Python dependencies (legacy)
+├── ARCHITECTURE.md              # Architecture documentation
+├── DEPLOYMENT_GUIDE.md         # Deployment guide (Next.js + FastAPI)
+├── DEPLOYMENT.md                # Deployment guide (Streamlit)
+└── SECURITY.md                  # Security documentation
 ```
 
 ## 🤝 Contributing
@@ -186,7 +275,9 @@ This project is open source and available under the MIT License.
 ## 🙏 Acknowledgments
 
 - Built with [CrewAI](https://crewai.com)
-- Frontend powered by [Streamlit](https://streamlit.io)
+- Frontend powered by [Next.js](https://nextjs.org) and [Tailwind CSS](https://tailwindcss.com)
+- Backend powered by [FastAPI](https://fastapi.tiangolo.com)
+- Legacy frontend: [Streamlit](https://streamlit.io)
 - AI by [OpenAI](https://openai.com)
 - Search by [Serper](https://serper.dev)
 
@@ -199,4 +290,4 @@ This project is open source and available under the MIT License.
 
 ---
 
-**Made with ❤️ using CrewAI and Streamlit**
+**Made with ❤️ using CrewAI, Next.js, and FastAPI**
