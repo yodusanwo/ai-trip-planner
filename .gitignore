@@ -45,3 +45,4 @@ trip_planner/output/*.html
 # Database
 *.db
 *.sqlite
+backend/output/
