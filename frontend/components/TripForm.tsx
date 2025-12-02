@@ -72,6 +72,8 @@ export default function TripForm({ clientId, onTripCreated }: TripFormProps) {
     setCheckingSpell(true)
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      console.log(`[Spell Check] Checking ${type}: "${text}"`)
+      
       const response = await fetch(`${apiUrl}/api/spell-check`, {
         method: 'POST',
         headers: {
@@ -82,14 +84,19 @@ export default function TripForm({ clientId, onTripCreated }: TripFormProps) {
 
       if (response.ok) {
         const result: SpellCheckResult = await response.json()
+        console.log(`[Spell Check] Result for ${type}:`, result)
+        
         if (type === 'destination') {
           setDestinationSpellCheck(result)
         } else {
           setRequirementsSpellCheck(result)
         }
+      } else {
+        const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }))
+        console.error(`[Spell Check] API error for ${type}:`, errorData)
       }
     } catch (err) {
-      console.error('Spell check error:', err)
+      console.error(`[Spell Check] Error checking ${type}:`, err)
     } finally {
       setCheckingSpell(false)
     }
@@ -98,12 +105,12 @@ export default function TripForm({ clientId, onTripCreated }: TripFormProps) {
   // Debounce spell check for destination
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (destination.trim()) {
+      if (destination.trim() && destination.trim().length >= 3) {
         spellCheckText(destination, 'destination')
       } else {
         setDestinationSpellCheck(null)
       }
-    }, 800) // Wait 800ms after user stops typing
+    }, 500) // Wait 500ms after user stops typing
 
     return () => clearTimeout(timer)
   }, [destination, spellCheckText])
@@ -111,12 +118,12 @@ export default function TripForm({ clientId, onTripCreated }: TripFormProps) {
   // Debounce spell check for special requirements
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (specialRequirements.trim()) {
+      if (specialRequirements.trim() && specialRequirements.trim().length >= 3) {
         spellCheckText(specialRequirements, 'requirements')
       } else {
         setRequirementsSpellCheck(null)
       }
-    }, 800) // Wait 800ms after user stops typing
+    }, 500) // Wait 500ms after user stops typing
 
     return () => clearTimeout(timer)
   }, [specialRequirements, spellCheckText])
@@ -221,7 +228,19 @@ export default function TripForm({ clientId, onTripCreated }: TripFormProps) {
           required
           maxLength={100}
         />
-        {destinationSpellCheck?.has_errors && (
+        {checkingSpell && destination.trim().length >= 3 && (
+          <div className="mt-2 text-xs text-gray-500">
+            Checking spelling...
+          </div>
+        )}
+        {destinationSpellCheck?.error && (
+          <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-xs text-red-700">
+              ⚠️ Spell checker unavailable: {destinationSpellCheck.error}
+            </p>
+          </div>
+        )}
+        {destinationSpellCheck?.has_errors && !destinationSpellCheck?.error && (
           <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
             <p className="text-sm font-medium text-yellow-800 mb-2">
               ⚠️ Possible spelling issues detected:
@@ -230,26 +249,34 @@ export default function TripForm({ clientId, onTripCreated }: TripFormProps) {
               Note: Place names may not be recognized by the spell checker.
             </p>
             <div className="space-y-1">
-              {destinationSpellCheck.misspelled_words.map((word) => (
-                <div key={word} className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm text-yellow-800 font-medium">"{word}"</span>
-                  {destinationSpellCheck.suggestions[word] && destinationSpellCheck.suggestions[word].length > 0 && (
-                    <>
-                      <span className="text-xs text-yellow-600">→</span>
-                      {destinationSpellCheck.suggestions[word].map((suggestion) => (
-                        <button
-                          key={suggestion}
-                          type="button"
-                          onClick={() => applySuggestion(word, suggestion, 'destination')}
-                          className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200 transition-colors"
-                        >
-                          {suggestion}
-                        </button>
-                      ))}
-                    </>
-                  )}
-                </div>
-              ))}
+              {destinationSpellCheck.misspelled_words.map((word) => {
+                // Try to find suggestions with case-insensitive matching
+                const suggestionKey = Object.keys(destinationSpellCheck.suggestions).find(
+                  key => key.toLowerCase() === word.toLowerCase()
+                ) || word
+                const suggestions = destinationSpellCheck.suggestions[suggestionKey] || []
+                
+                return (
+                  <div key={word} className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm text-yellow-800 font-medium">"{word}"</span>
+                    {suggestions.length > 0 && (
+                      <>
+                        <span className="text-xs text-yellow-600">→</span>
+                        {suggestions.map((suggestion) => (
+                          <button
+                            key={suggestion}
+                            type="button"
+                            onClick={() => applySuggestion(word, suggestion, 'destination')}
+                            className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200 transition-colors"
+                          >
+                            {suggestion}
+                          </button>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}
@@ -341,32 +368,52 @@ export default function TripForm({ clientId, onTripCreated }: TripFormProps) {
         <p className="text-xs text-gray-500 mt-1">
           {specialRequirements.length}/500 characters
         </p>
-        {requirementsSpellCheck?.has_errors && (
+        {checkingSpell && specialRequirements.trim().length >= 3 && (
+          <div className="mt-2 text-xs text-gray-500">
+            Checking spelling...
+          </div>
+        )}
+        {requirementsSpellCheck?.error && (
+          <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-xs text-red-700">
+              ⚠️ Spell checker unavailable: {requirementsSpellCheck.error}
+            </p>
+          </div>
+        )}
+        {requirementsSpellCheck?.has_errors && !requirementsSpellCheck?.error && (
           <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
             <p className="text-sm font-medium text-yellow-800 mb-2">
               ⚠️ Possible spelling issues detected:
             </p>
             <div className="space-y-1">
-              {requirementsSpellCheck.misspelled_words.map((word) => (
-                <div key={word} className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm text-yellow-800 font-medium">"{word}"</span>
-                  {requirementsSpellCheck.suggestions[word] && requirementsSpellCheck.suggestions[word].length > 0 && (
-                    <>
-                      <span className="text-xs text-yellow-600">→</span>
-                      {requirementsSpellCheck.suggestions[word].map((suggestion) => (
-                        <button
-                          key={suggestion}
-                          type="button"
-                          onClick={() => applySuggestion(word, suggestion, 'requirements')}
-                          className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200 transition-colors"
-                        >
-                          {suggestion}
-                        </button>
-                      ))}
-                    </>
-                  )}
-                </div>
-              ))}
+              {requirementsSpellCheck.misspelled_words.map((word) => {
+                // Try to find suggestions with case-insensitive matching
+                const suggestionKey = Object.keys(requirementsSpellCheck.suggestions).find(
+                  key => key.toLowerCase() === word.toLowerCase()
+                ) || word
+                const suggestions = requirementsSpellCheck.suggestions[suggestionKey] || []
+                
+                return (
+                  <div key={word} className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm text-yellow-800 font-medium">"{word}"</span>
+                    {suggestions.length > 0 && (
+                      <>
+                        <span className="text-xs text-yellow-600">→</span>
+                        {suggestions.map((suggestion) => (
+                          <button
+                            key={suggestion}
+                            type="button"
+                            onClick={() => applySuggestion(word, suggestion, 'requirements')}
+                            className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200 transition-colors"
+                          >
+                            {suggestion}
+                          </button>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}

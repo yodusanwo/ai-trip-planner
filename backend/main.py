@@ -137,6 +137,10 @@ class UsageStats(BaseModel):
     message: Optional[str] = None
 
 
+class SpellCheckRequest(BaseModel):
+    text: str = Field(..., min_length=1)
+
+
 # ============================================================================
 # Security & Rate Limiting
 # ============================================================================
@@ -157,32 +161,49 @@ def spell_check_text(text: str) -> Dict[str, Any]:
         
         spell = SpellChecker()
         
-        # Split text into words (handle punctuation)
-        words = re.findall(r'\b\w+\b', text.lower())
-        misspelled = spell.unknown(words)
+        # Split text into words (handle punctuation and preserve case for display)
+        words_lower = re.findall(r'\b\w+\b', text.lower())
+        words_original = re.findall(r'\b\w+\b', text)
+        
+        # Find misspelled words (using lowercase for checking)
+        misspelled_lower = spell.unknown(words_lower)
+        
+        # Map back to original case
+        word_map = {word.lower(): word for word in words_original}
+        misspelled_original = [word_map.get(word, word) for word in misspelled_lower]
         
         suggestions = {}
-        for word in misspelled:
-            # Get suggestions (top 3) - candidates() returns a set, convert to list
-            candidates = list(spell.candidates(word))[:3] if spell.candidates(word) else []
-            suggestions[word] = candidates
+        for word_lower in misspelled_lower:
+            # Get suggestions (top 3)
+            candidates = list(spell.candidates(word_lower))[:3] if spell.candidates(word_lower) else []
+            # Use original case for the key
+            word_original = word_map.get(word_lower, word_lower)
+            suggestions[word_original] = candidates
         
-        return {
-            "has_errors": len(misspelled) > 0,
-            "misspelled_words": list(misspelled),
+        result = {
+            "has_errors": len(misspelled_lower) > 0,
+            "misspelled_words": misspelled_original,
             "suggestions": suggestions,
             "original_text": text
         }
-    except ImportError:
+        
+        print(f"[Spell Check] Found {len(misspelled_lower)} misspelled words: {misspelled_original}")
+        return result
+        
+    except ImportError as e:
+        print(f"[Spell Check] ImportError: {e}")
         # Fallback if spellchecker not available
         return {
             "has_errors": False,
             "misspelled_words": [],
             "suggestions": {},
             "original_text": text,
-            "error": "Spell checker not available"
+            "error": "Spell checker not available. Please install pyspellchecker."
         }
     except Exception as e:
+        print(f"[Spell Check] Exception: {e}")
+        import traceback
+        traceback.print_exc()
         return {
             "has_errors": False,
             "misspelled_words": [],
@@ -967,14 +988,18 @@ async def get_result(trip_id: str):
 
 
 @app.post("/api/spell-check")
-async def spell_check(request: Dict[str, str]):
+async def spell_check(request: SpellCheckRequest):
     """Spell check text and return suggestions"""
-    text = request.get("text", "")
-    if not text:
-        raise HTTPException(status_code=400, detail="Text is required")
-    
-    result = spell_check_text(text)
-    return result
+    try:
+        print(f"[Spell Check] Received request for text: '{request.text}'")
+        result = spell_check_text(request.text)
+        print(f"[Spell Check] Result: has_errors={result.get('has_errors')}, misspelled={result.get('misspelled_words')}")
+        return result
+    except Exception as e:
+        print(f"[Spell Check] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Spell check failed: {str(e)}")
 
 
 @app.get("/api/trips/{trip_id}/result/pdf")
