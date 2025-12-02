@@ -3,12 +3,12 @@ Security and rate limiting configuration for the Trip Planner API
 """
 
 # Rate limiting
-MAX_TRIPS_PER_HOUR = 10
-MAX_TRIPS_PER_DAY = 50
+MAX_TRIPS_PER_HOUR = 5
+MAX_TRIPS_PER_DAY = 5
 
 # Cost limits (in USD)
-DAILY_COST_CAP_USD = 1000.0  # Maximum daily cost cap
-ESTIMATED_COST_PER_TRIP = 5.0  # Estimated cost per trip in USD
+DAILY_COST_CAP_USD = 2.50  # Maximum daily cost cap
+ESTIMATED_COST_PER_TRIP = 0.50  # Estimated cost per trip in USD
 
 # Input validation limits
 MAX_DESTINATION_LENGTH = 200
