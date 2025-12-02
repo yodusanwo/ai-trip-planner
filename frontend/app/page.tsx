@@ -5,6 +5,7 @@ import TripForm from '@/components/TripForm'
 import ProgressTracker from '@/components/ProgressTracker'
 import TripResult from '@/components/TripResult'
 import UsageStats from '@/components/UsageStats'
+import WelcomeSection from '@/components/WelcomeSection'
 
 export default function Home() {
   const [tripId, setTripId] = useState<string | null>(null)
@@ -33,6 +34,13 @@ export default function Home() {
     setShowResult(true)
   }
 
+  const handleStartNewTrip = () => {
+    setTripId(null)
+    setShowResult(false)
+    // Scroll to top to show welcome section
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   return (
     <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       <div className="container mx-auto px-4 py-8 max-w-6xl">
@@ -51,6 +59,9 @@ export default function Home() {
 
         {/* Usage Stats */}
         {clientId && <UsageStats clientId={clientId} />}
+
+        {/* Welcome Section - Show when no active trip */}
+        {!tripId && !showResult && <WelcomeSection />}
 
         {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
@@ -82,6 +93,14 @@ export default function Home() {
         {/* Trip Result */}
         {showResult && tripId && (
           <div className="bg-white rounded-lg shadow-lg p-6">
+            <div className="mb-4 flex justify-end">
+              <button
+                onClick={handleStartNewTrip}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold shadow-md hover:shadow-lg"
+              >
+                ✨ Plan Another Trip
+              </button>
+            </div>
             <TripResult tripId={tripId} />
           </div>
         )}
