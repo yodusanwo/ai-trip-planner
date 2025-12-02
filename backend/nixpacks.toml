@@ -1,0 +1,25 @@
+# Nixpacks configuration for Railway
+# This installs system dependencies required for WeasyPrint
+
+[phases.setup]
+nixPkgs = [
+    "python313",
+    "cairo",
+    "pango",
+    "gdk-pixbuf",
+    "libffi",
+    "shared-mime-info"
+]
+
+[phases.install]
+cmds = [
+    "pip install --upgrade pip",
+    "pip install -r requirements.txt"
+]
+
+[phases.build]
+cmds = []
+
+[start]
+cmd = "uvicorn main:app --host 0.0.0.0 --port $PORT"
+

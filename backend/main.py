@@ -28,8 +28,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel, Field
 import uvicorn
-from weasyprint import HTML
 from io import BytesIO
+
+# Lazy import WeasyPrint - only import when needed to avoid startup crashes
+# WeasyPrint requires system libraries that may not be available on all platforms
+WEASYPRINT_AVAILABLE = False
+try:
+    from weasyprint import HTML
+    WEASYPRINT_AVAILABLE = True
+except (ImportError, OSError) as e:
+    print(f"⚠️  WeasyPrint not available: {e}")
+    print("⚠️  PDF generation will be disabled. The app will still run normally.")
+    HTML = None
 
 # Load environment variables
 # Try loading from backend directory first, then parent directory
@@ -327,6 +337,12 @@ def extract_budget_overview(research_output: str) -> Optional[Dict[str, Any]]:
 
 def html_to_pdf(html_content: str) -> bytes:
     """Convert HTML content to PDF bytes"""
+    if not WEASYPRINT_AVAILABLE or HTML is None:
+        raise Exception(
+            "PDF generation is not available. WeasyPrint requires system libraries "
+            "that are not installed. Please install system dependencies or use HTML download instead."
+        )
+    
     try:
         html = HTML(string=html_content)
         pdf_bytes = html.write_pdf()
