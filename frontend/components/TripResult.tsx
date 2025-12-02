@@ -105,16 +105,6 @@ export default function TripResult({ tripId }: TripResultProps) {
           sandbox="allow-same-origin"
         />
       </div>
-
-      {/* Raw HTML View Toggle */}
-      <details className="mt-4">
-        <summary className="cursor-pointer text-sm font-medium text-gray-700 hover:text-gray-900">
-          View Raw HTML
-        </summary>
-        <pre className="mt-2 p-4 bg-gray-100 rounded-lg overflow-auto text-xs max-h-96">
-          <code>{htmlContent}</code>
-        </pre>
-      </details>
     </div>
   )
 }
