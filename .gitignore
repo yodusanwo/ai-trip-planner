@@ -1,54 +1,48 @@
-# Environment variables
-.env
-.env.local
-.env.*.local
-
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Virtual environments
-.venv/
 venv/
-ENV/
 env/
+ENV/
+.venv
+*.egg-info/
+dist/
+build/
 
-# IDEs
+# Node
+node_modules/
+.next/
+out/
+.vercel/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+
+# OS
 .DS_Store
+Thumbs.db
 
-# Streamlit
-.streamlit/secrets.toml
+# Output
+trip_planner/output/*.html
+!trip_planner/output/example_trip_plan.html
 
-# Logs
-*.log
-
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-
-# Output files (optional - uncomment if you don't want to commit generated plans)
-# output/*.html
+# Database
+*.db
+*.sqlite
+backend/output/
