@@ -1060,7 +1060,24 @@ async def get_result_pdf(trip_id: str):
     
     try:
         html_content = trip_results[trip_id]
+        
+        # Debug: Log HTML content length and preview
+        print(f"[PDF] Generating PDF for trip {trip_id}")
+        print(f"[PDF] HTML content length: {len(html_content)} characters")
+        print(f"[PDF] HTML preview (first 200 chars): {html_content[:200]}")
+        
+        # Ensure HTML content is valid and not empty
+        if not html_content or len(html_content) < 100:
+            raise Exception(f"Invalid HTML content: length={len(html_content)}")
+        
+        # Check if HTML contains "in progress" text (shouldn't happen for completed trips)
+        if "trip in progress" in html_content.lower() or "planning still in progress" in html_content.lower():
+            print(f"[PDF] WARNING: HTML content appears to contain progress message!")
+            print(f"[PDF] This suggests the HTML was not properly extracted from CrewAI result")
+        
         pdf_bytes = html_to_pdf(html_content)
+        
+        print(f"[PDF] PDF generated successfully: {len(pdf_bytes)} bytes")
         
         return Response(
             content=pdf_bytes,
@@ -1070,6 +1087,9 @@ async def get_result_pdf(trip_id: str):
             }
         )
     except Exception as e:
+        print(f"[PDF] Error generating PDF: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to generate PDF: {str(e)}")
 
 
