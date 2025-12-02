@@ -783,15 +783,40 @@ async def run_crew_async(trip_id: str, inputs: Dict[str, Any]):
         })
         await asyncio.sleep(0.2)
         
-        # Read the output file (check both relative and absolute paths)
-        output_file = Path("output/trip_plan.html")
-        if not output_file.exists():
-            # Try parent directory
-            output_file = Path(__file__).parent.parent / "output" / "trip_plan.html"
-        if output_file.exists():
-            with open(output_file, 'r', encoding='utf-8') as f:
-                html_content = f.read()
+        # Extract HTML content from CrewAI result
+        # CrewAI returns results in memory, not as files
+        html_content = None
+        
+        # Try to get result from the crew execution
+        if result_container.get("result"):
+            result = result_container["result"]
             
+            # Extract HTML from the result object
+            # CrewAI results can be accessed via various attributes
+            if hasattr(result, 'tasks_output') and result.tasks_output:
+                # Get the last task output (planning task)
+                for task_output in reversed(result.tasks_output):
+                    output_str = str(task_output.raw) if hasattr(task_output, 'raw') else str(task_output)
+                    if output_str and len(output_str) > 100:  # Likely contains the HTML
+                        html_content = output_str
+                        break
+            elif hasattr(result, 'raw'):
+                html_content = str(result.raw)
+            elif hasattr(result, 'output'):
+                html_content = str(result.output)
+            else:
+                html_content = str(result)
+        
+        # Fallback: Try reading from file if result extraction didn't work
+        if not html_content or len(html_content) < 100:
+            output_file = Path("output/trip_plan.html")
+            if not output_file.exists():
+                output_file = Path(__file__).parent.parent / "output" / "trip_plan.html"
+            if output_file.exists():
+                with open(output_file, 'r', encoding='utf-8') as f:
+                    html_content = f.read()
+        
+        if html_content and len(html_content) > 100:
             # Clean HTML content
             html_content = html_content.strip()
             if html_content.startswith('```html'):
@@ -829,7 +854,7 @@ async def run_crew_async(trip_id: str, inputs: Dict[str, Any]):
             })
             print(f"[{trip_id}] ✅ Trip planning completed successfully!")
         else:
-            raise Exception(f"Output file not found at {output_file}")
+            raise Exception(f"Could not extract HTML content from CrewAI result. Result container: {result_container}")
             
     except Exception as e:
         error_msg = str(e)
