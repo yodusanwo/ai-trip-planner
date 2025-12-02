@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import TripForm from '@/components/TripForm'
+import TripForm, { TripDetails } from '@/components/TripForm'
 import ProgressTracker from '@/components/ProgressTracker'
 import TripResult from '@/components/TripResult'
 import UsageStats from '@/components/UsageStats'
@@ -11,6 +11,7 @@ export default function Home() {
   const [tripId, setTripId] = useState<string | null>(null)
   const [clientId, setClientId] = useState<string | null>(null)
   const [showResult, setShowResult] = useState(false)
+  const [tripDetails, setTripDetails] = useState<TripDetails | null>(null)
 
   // Generate client ID on mount
   useEffect(() => {
@@ -24,9 +25,10 @@ export default function Home() {
     }
   }, [])
 
-  const handleTripCreated = (newTripId: string, newClientId: string) => {
+  const handleTripCreated = (newTripId: string, newClientId: string, details: TripDetails) => {
     setTripId(newTripId)
     setClientId(newClientId)
+    setTripDetails(details)
     setShowResult(false)
   }
 
@@ -36,6 +38,7 @@ export default function Home() {
 
   const handleStartNewTrip = () => {
     setTripId(null)
+    setTripDetails(null)
     setShowResult(false)
     // Scroll to top to show welcome section
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -85,6 +88,7 @@ export default function Home() {
               <ProgressTracker 
                 tripId={tripId}
                 onComplete={handleTripComplete}
+                tripDetails={tripDetails}
               />
             </div>
           )}

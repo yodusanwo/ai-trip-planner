@@ -2,9 +2,18 @@
 
 import { useState, useEffect, useRef } from 'react'
 
+export interface TripDetails {
+  destination: string
+  duration: number
+  budget: string
+  travelStyle: string[]
+  specialRequirements?: string
+}
+
 interface ProgressTrackerProps {
   tripId: string
   onComplete: () => void
+  tripDetails: TripDetails | null
 }
 
 interface ProgressData {
@@ -38,7 +47,7 @@ interface AgentStatus {
   step: number
 }
 
-export default function ProgressTracker({ tripId, onComplete }: ProgressTrackerProps) {
+export default function ProgressTracker({ tripId, onComplete, tripDetails }: ProgressTrackerProps) {
   const [progress, setProgress] = useState<ProgressData | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [elapsedTime, setElapsedTime] = useState(0)
@@ -433,6 +442,59 @@ export default function ProgressTracker({ tripId, onComplete }: ProgressTrackerP
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
           {error}
+        </div>
+      )}
+
+      {/* Trip Details Summary */}
+      {tripDetails && (
+        <div className="mt-6 pt-6 border-t border-gray-200">
+          <h4 className="text-lg font-semibold text-gray-800 mb-4">
+            📋 Trip Details
+          </h4>
+          <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+            {/* Destination */}
+            <div className="flex items-start">
+              <span className="text-gray-600 font-medium min-w-[120px]">📍 Destination:</span>
+              <span className="text-gray-800 font-semibold">{tripDetails.destination}</span>
+            </div>
+            
+            {/* Duration */}
+            <div className="flex items-start">
+              <span className="text-gray-600 font-medium min-w-[120px]">📅 Duration:</span>
+              <span className="text-gray-800">{tripDetails.duration} {tripDetails.duration === 1 ? 'day' : 'days'}</span>
+            </div>
+            
+            {/* Budget */}
+            <div className="flex items-start">
+              <span className="text-gray-600 font-medium min-w-[120px]">💰 Budget:</span>
+              <span className="text-gray-800 capitalize">
+                {tripDetails.budget === 'budget' ? 'Budget-Friendly' : tripDetails.budget === 'moderate' ? 'Moderate' : 'Luxury'}
+              </span>
+            </div>
+            
+            {/* Travel Style */}
+            <div className="flex items-start">
+              <span className="text-gray-600 font-medium min-w-[120px]">🎯 Travel Style:</span>
+              <div className="flex flex-wrap gap-2">
+                {tripDetails.travelStyle.map((style, index) => (
+                  <span
+                    key={index}
+                    className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
+                  >
+                    {style}
+                  </span>
+                ))}
+              </div>
+            </div>
+            
+            {/* Special Requirements */}
+            {tripDetails.specialRequirements && (
+              <div className="flex items-start">
+                <span className="text-gray-600 font-medium min-w-[120px]">✨ Special Requirements:</span>
+                <span className="text-gray-800">{tripDetails.specialRequirements}</span>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

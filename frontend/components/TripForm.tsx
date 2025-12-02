@@ -2,9 +2,17 @@
 
 import { useState } from 'react'
 
+export interface TripDetails {
+  destination: string
+  duration: number
+  budget: string
+  travelStyle: string[]
+  specialRequirements?: string
+}
+
 interface TripFormProps {
   clientId: string | null
-  onTripCreated: (tripId: string, clientId: string) => void
+  onTripCreated: (tripId: string, clientId: string, tripDetails: TripDetails) => void
 }
 
 export default function TripForm({ clientId, onTripCreated }: TripFormProps) {
@@ -79,7 +87,17 @@ export default function TripForm({ clientId, onTripCreated }: TripFormProps) {
       }
 
       const data = await response.json()
-      onTripCreated(data.trip_id, data.client_id)
+      
+      // Pass trip details along with trip ID
+      const tripDetails: TripDetails = {
+        destination: destination.trim(),
+        duration,
+        budget,
+        travelStyle,
+        specialRequirements: specialRequirements.trim() || undefined,
+      }
+      
+      onTripCreated(data.trip_id, data.client_id, tripDetails)
       
       // Reset form
       setDestination('')
