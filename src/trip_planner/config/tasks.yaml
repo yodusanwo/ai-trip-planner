@@ -1,9 +1,12 @@
 research_task:
   description: >
-    Research {destination} for {duration} trip. Find: 5-7 top attractions, 
-    3-5 restaurants, 2-3 activities, transport, costs, key tips. Be brief.
+    Research {destination} for {duration} trip with {budget} budget level. Find: 5-7 top attractions, 
+    3-5 restaurants, 2-3 activities, transport, costs, key tips. Include detailed budget breakdown:
+    daily accommodation costs, food costs, transportation costs, and overall daily budget range.
+    Research should match the {budget} budget level (budget-friendly, moderate, or luxury).
+    Be brief but include specific cost ranges.
   expected_output: >
-    Brief report: attractions, restaurants, activities, transport, budget, tips.
+    Brief report: attractions, restaurants, activities, transport, detailed budget breakdown with daily costs, tips.
   agent: trip_researcher
 
 review_task:

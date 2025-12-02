@@ -314,6 +314,43 @@ export default function ProgressTracker({ tripId, onComplete, tripDetails }: Pro
     return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`
   }
 
+  // Generate budget overview based on budget level
+  const getBudgetOverview = (budget: string, destination: string) => {
+    const budgetRanges = {
+      budget: {
+        overall: { min: 30, max: 80 },
+        accommodation: { min: 15, max: 40 },
+        food: { min: 10, max: 25 },
+        transportation: { min: 5, max: 15 },
+        note: "Budget-friendly options with hostels, street food, and public transport"
+      },
+      moderate: {
+        overall: { min: 100, max: 200 },
+        accommodation: { min: 50, max: 120 },
+        food: { min: 30, max: 50 },
+        transportation: { min: 20, max: 30 },
+        note: "Comfortable mid-range hotels, local restaurants, and convenient transport"
+      },
+      luxury: {
+        overall: { min: 300, max: 600 },
+        accommodation: { min: 150, max: 400 },
+        food: { min: 80, max: 150 },
+        transportation: { min: 70, max: 50 },
+        note: "Premium hotels, fine dining, and private transportation"
+      }
+    }
+
+    const range = budgetRanges[budget as keyof typeof budgetRanges] || budgetRanges.moderate
+    
+    return {
+      overall: `$${range.overall.min} - $${range.overall.max}/day`,
+      accommodation: `$${range.accommodation.min}-$${range.accommodation.max}`,
+      food: `$${range.food.min}-$${range.food.max}`,
+      transportation: `$${range.transportation.min}-$${range.transportation.max}`,
+      note: range.note
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Header with Step Indicator */}
@@ -494,6 +531,48 @@ export default function ProgressTracker({ tripId, onComplete, tripDetails }: Pro
                 <span className="text-gray-800">{tripDetails.specialRequirements}</span>
               </div>
             )}
+          </div>
+
+          {/* Budget Overview */}
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <h4 className="text-lg font-semibold text-gray-800 mb-4">
+              💰 Budget Overview
+            </h4>
+            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-5 border-2 border-green-200">
+              {(() => {
+                const budgetInfo = getBudgetOverview(tripDetails.budget, tripDetails.destination)
+                return (
+                  <>
+                    <div className="mb-4">
+                      <p className="text-sm text-gray-600 mb-1">Overall Budget:</p>
+                      <p className="text-xl font-bold text-green-700">{budgetInfo.overall}</p>
+                    </div>
+                    
+                    <div className="space-y-2 mb-4">
+                      <p className="text-sm font-semibold text-gray-700 mb-2">Daily Costs:</p>
+                      <div className="space-y-1.5 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-700">Accommodation:</span>
+                          <span className="font-medium text-gray-800">{budgetInfo.accommodation}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-700">Food:</span>
+                          <span className="font-medium text-gray-800">{budgetInfo.food}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-700">Transportation:</span>
+                          <span className="font-medium text-gray-800">{budgetInfo.transportation}</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <p className="text-xs text-gray-600 italic mt-3 pt-3 border-t border-green-200">
+                      {budgetInfo.note}
+                    </p>
+                  </>
+                )
+              })()}
+            </div>
           </div>
         </div>
       )}
