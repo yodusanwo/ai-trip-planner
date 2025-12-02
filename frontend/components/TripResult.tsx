@@ -15,28 +15,62 @@ export default function TripResult({ tripId }: TripResultProps) {
     const fetchResult = async () => {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+        console.log(`[TripResult] Fetching result for trip: ${tripId}`)
+        
+        // First check the progress to see what's happening
+        try {
+          const progressResponse = await fetch(`${apiUrl}/api/trips/${tripId}/progress`)
+          if (progressResponse.ok) {
+            const progressData = await progressResponse.json()
+            console.log(`[TripResult] Trip progress:`, progressData)
+            if (progressData.status === 'running') {
+              console.log(`[TripResult] Trip ${tripId} still in progress, will retry...`)
+            } else if (progressData.status === 'error') {
+              throw new Error(`Trip planning failed: ${progressData.message || 'Unknown error'}`)
+            }
+          }
+        } catch (progressErr) {
+          console.warn(`[TripResult] Could not check progress:`, progressErr)
+        }
+        
         const response = await fetch(`${apiUrl}/api/trips/${tripId}/result`)
 
         if (response.status === 202) {
           // Still in progress, retry after a delay
+          console.log(`[TripResult] Trip ${tripId} still in progress (202), retrying in 2s...`)
           setTimeout(fetchResult, 2000)
           return
         }
 
         if (!response.ok) {
-          throw new Error('Failed to fetch trip result')
+          // Try to get error message from backend
+          let errorMessage = 'Failed to fetch trip result'
+          try {
+            const errorData = await response.json()
+            errorMessage = errorData.detail || errorMessage
+            console.error(`[TripResult] Backend error (${response.status}): ${errorMessage}`)
+          } catch {
+            errorMessage = `HTTP ${response.status}: ${response.statusText}. The trip result may not be available. If the backend restarted, the result may have been lost.`
+            console.error(`[TripResult] HTTP error: ${errorMessage}`)
+          }
+          throw new Error(errorMessage)
         }
 
         const data = await response.json()
+        console.log(`[TripResult] Successfully fetched result for trip: ${tripId}`)
         setHtmlContent(data.html_content)
         setLoading(false)
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load trip result')
+        const errorMsg = err instanceof Error ? err.message : 'Failed to load trip result'
+        console.error(`[TripResult] Error: ${errorMsg}`, err)
+        setError(errorMsg)
         setLoading(false)
       }
     }
 
-    fetchResult()
+    if (tripId) {
+      fetchResult()
+    }
   }, [tripId])
 
   if (loading) {
