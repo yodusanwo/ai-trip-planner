@@ -16,9 +16,11 @@ from dotenv import load_dotenv
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel, Field
 import uvicorn
+from weasyprint import HTML
+from io import BytesIO
 
 # Load environment variables
 # Try loading from backend directory first, then parent directory
@@ -247,6 +249,17 @@ def extract_budget_overview(research_output: str) -> Optional[Dict[str, Any]]:
     except Exception as e:
         print(f"Error extracting budget overview: {e}")
         return None
+
+
+def html_to_pdf(html_content: str) -> bytes:
+    """Convert HTML content to PDF bytes"""
+    try:
+        html = HTML(string=html_content)
+        pdf_bytes = html.write_pdf()
+        return pdf_bytes
+    except Exception as e:
+        print(f"Error converting HTML to PDF: {e}")
+        raise Exception(f"Failed to generate PDF: {str(e)}")
 
 
 def update_usage(client_id: str):
@@ -900,6 +913,35 @@ async def get_result(trip_id: str):
         trip_id=trip_id,
         html_content=trip_results[trip_id],
     )
+
+
+@app.get("/api/trips/{trip_id}/result/pdf")
+async def get_result_pdf(trip_id: str):
+    """Get the final trip plan as a PDF download"""
+    if trip_id not in trip_results:
+        # Check if still in progress
+        if trip_id in trip_progress:
+            status = trip_progress[trip_id]["status"]
+            if status == "running":
+                raise HTTPException(status_code=202, detail="Trip planning still in progress")
+            elif status == "error":
+                raise HTTPException(status_code=500, detail="Trip planning failed")
+        
+        raise HTTPException(status_code=404, detail="Trip result not found")
+    
+    try:
+        html_content = trip_results[trip_id]
+        pdf_bytes = html_to_pdf(html_content)
+        
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f"attachment; filename=trip_plan_{trip_id}.pdf"
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate PDF: {str(e)}")
 
 
 # ============================================================================

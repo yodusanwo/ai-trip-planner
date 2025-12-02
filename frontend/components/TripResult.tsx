@@ -69,18 +69,30 @@ export default function TripResult({ tripId }: TripResultProps) {
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-semibold text-gray-800">Your Trip Plan</h2>
         <button
-          onClick={() => {
-            const blob = new Blob([htmlContent], { type: 'text/html' })
-            const url = URL.createObjectURL(blob)
-            const a = document.createElement('a')
-            a.href = url
-            a.download = `trip_plan_${tripId}.html`
-            a.click()
-            URL.revokeObjectURL(url)
+          onClick={async () => {
+            try {
+              const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+              const response = await fetch(`${apiUrl}/api/trips/${tripId}/result/pdf`)
+              
+              if (!response.ok) {
+                throw new Error('Failed to download PDF')
+              }
+              
+              const blob = await response.blob()
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              a.download = `trip_plan_${tripId}.pdf`
+              a.click()
+              URL.revokeObjectURL(url)
+            } catch (err) {
+              console.error('Error downloading PDF:', err)
+              alert('Failed to download PDF. Please try again.')
+            }
           }}
           className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
         >
-          Download HTML
+          📥 Download PDF
         </button>
       </div>
 
