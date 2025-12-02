@@ -4,6 +4,7 @@ Provides REST API and SSE endpoints for the Next.js frontend
 """
 
 import os
+import sys
 import asyncio
 import uuid
 import json
@@ -13,6 +14,14 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 from pathlib import Path
 from dotenv import load_dotenv
+
+# Set library path for WeasyPrint on macOS
+if sys.platform == 'darwin':
+    homebrew_lib_path = '/opt/homebrew/lib'
+    if os.path.exists(homebrew_lib_path):
+        current_dyld = os.environ.get('DYLD_LIBRARY_PATH', '')
+        if homebrew_lib_path not in current_dyld:
+            os.environ['DYLD_LIBRARY_PATH'] = f'{homebrew_lib_path}:{current_dyld}'.strip(':')
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
