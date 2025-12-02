@@ -8,6 +8,7 @@ import asyncio
 import uuid
 import json
 import threading
+import re
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 from pathlib import Path
@@ -180,6 +181,72 @@ def check_rate_limits(client_id: str) -> tuple[bool, Optional[str]]:
         return False, f"Daily cost cap exceeded: ${DAILY_COST_CAP_USD:.2f} limit reached"
     
     return True, None
+
+
+def extract_budget_overview(research_output: str) -> Optional[Dict[str, Any]]:
+    """Extract budget overview from researcher agent output"""
+    try:
+        # Look for BUDGET OVERVIEW section
+        budget_pattern = r'BUDGET OVERVIEW:?\s*(.*?)(?=\n\n|\n[A-Z]|$)'
+        match = re.search(budget_pattern, research_output, re.IGNORECASE | re.DOTALL)
+        
+        if not match:
+            return None
+        
+        budget_text = match.group(1).strip()
+        
+        # Extract overall budget
+        overall_match = re.search(r'Overall Budget:\s*\$?([\d,]+)\s*-\s*\$?([\d,]+)/day', budget_text, re.IGNORECASE)
+        overall_min = overall_match.group(1).replace(',', '') if overall_match else None
+        overall_max = overall_match.group(2).replace(',', '') if overall_match else None
+        
+        # Extract accommodation
+        acc_match = re.search(r'Accommodation:\s*\$?([\d,]+)-?\$?([\d,]+)?', budget_text, re.IGNORECASE)
+        acc_min = acc_match.group(1).replace(',', '') if acc_match else None
+        acc_max = acc_match.group(2).replace(',', '') if acc_match and acc_match.group(2) else acc_min
+        
+        # Extract food
+        food_match = re.search(r'Food:\s*\$?([\d,]+)-?\$?([\d,]+)?', budget_text, re.IGNORECASE)
+        food_min = food_match.group(1).replace(',', '') if food_match else None
+        food_max = food_match.group(2).replace(',', '') if food_match and food_match.group(2) else food_min
+        
+        # Extract transportation
+        trans_match = re.search(r'Transportation:\s*\$?([\d,]+)-?\$?([\d,]+)?', budget_text, re.IGNORECASE)
+        trans_min = trans_match.group(1).replace(',', '') if trans_match else None
+        trans_max = trans_match.group(2).replace(',', '') if trans_match and trans_match.group(2) else trans_min
+        
+        # Build budget overview dict
+        budget_overview = {}
+        
+        if overall_min and overall_max:
+            budget_overview['overall'] = f"${overall_min} - ${overall_max}/day"
+        
+        if acc_min:
+            if acc_max and acc_max != acc_min:
+                budget_overview['accommodation'] = f"${acc_min}-${acc_max}"
+            else:
+                budget_overview['accommodation'] = f"${acc_min}"
+        
+        if food_min:
+            if food_max and food_max != food_min:
+                budget_overview['food'] = f"${food_min}-${food_max}"
+            else:
+                budget_overview['food'] = f"${food_min}"
+        
+        if trans_min:
+            # Check for special notes (like rail passes)
+            trans_note_match = re.search(r'Transportation:.*?\((.*?)\)', budget_text, re.IGNORECASE)
+            if trans_note_match:
+                budget_overview['transportation'] = f"${trans_min}-${trans_max}" if trans_max and trans_max != trans_min else f"${trans_min}"
+                budget_overview['transportation_note'] = trans_note_match.group(1)
+            else:
+                budget_overview['transportation'] = f"${trans_min}-${trans_max}" if trans_max and trans_max != trans_min else f"${trans_min}"
+        
+        return budget_overview if budget_overview else None
+        
+    except Exception as e:
+        print(f"Error extracting budget overview: {e}")
+        return None
 
 
 def update_usage(client_id: str):
@@ -366,6 +433,26 @@ def run_crew_sync(trip_id: str, crew_inputs: Dict[str, Any], result_container: D
             print(f"\n[{trip_id}] 🚀 Starting crew.kickoff()...")
             result = crew.kickoff(inputs=crew_inputs)
             
+            # Extract budget overview from research task output
+            try:
+                research_output = ""
+                if hasattr(result, 'tasks_output') and result.tasks_output:
+                    for task_output in result.tasks_output:
+                        if hasattr(task_output, 'task') and 'research' in str(task_output.task).lower():
+                            research_output = str(task_output.raw) if hasattr(task_output, 'raw') else str(task_output)
+                            break
+                elif hasattr(result, 'raw'):
+                    research_output = str(result.raw)
+                else:
+                    research_output = str(result)
+                
+                budget_overview = extract_budget_overview(research_output)
+                if budget_overview:
+                    print(f"[{trip_id}] 💰 Extracted budget overview: {budget_overview}")
+                    result_container["budget_overview"] = budget_overview
+            except Exception as e:
+                print(f"[{trip_id}] ⚠️  Error extracting budget overview: {e}")
+            
             # Since we can't get real-time updates, we'll update progress based on elapsed time
             # This is a fallback - the async function will handle progress updates
             elapsed = time.time() - start_time
@@ -383,6 +470,32 @@ def run_crew_sync(trip_id: str, crew_inputs: Dict[str, Any], result_container: D
         result = crew.kickoff(inputs=crew_inputs)
         print(f"[{trip_id}] ✅ Crew execution completed")
         print(f"[{trip_id}] 📊 All tasks completed successfully")
+        
+        # Extract budget overview from research task output
+        try:
+            # Get research task output from crew result
+            research_output = ""
+            if hasattr(result, 'tasks_output') and result.tasks_output:
+                # Try to find research task output
+                for task_output in result.tasks_output:
+                    if hasattr(task_output, 'task') and 'research' in str(task_output.task).lower():
+                        research_output = str(task_output.raw) if hasattr(task_output, 'raw') else str(task_output)
+                        break
+            elif hasattr(result, 'raw'):
+                research_output = str(result.raw)
+            else:
+                research_output = str(result)
+            
+            # Extract budget overview
+            budget_overview = extract_budget_overview(research_output)
+            if budget_overview:
+                print(f"[{trip_id}] 💰 Extracted budget overview: {budget_overview}")
+                result_container["budget_overview"] = budget_overview
+            else:
+                print(f"[{trip_id}] ⚠️  Could not extract budget overview from research output")
+        except Exception as e:
+            print(f"[{trip_id}] ⚠️  Error extracting budget overview: {e}")
+        
         result_container["result"] = result
         result_container["success"] = True
         
@@ -444,7 +557,7 @@ async def run_crew_async(trip_id: str, inputs: Dict[str, Any]):
         await asyncio.sleep(0.2)
         
         # Start crew in a separate thread with shared progress dictionary
-        result_container = {"result": None, "success": False, "error": None, "elapsed_time": 0}
+        result_container = {"result": None, "success": False, "error": None, "elapsed_time": 0, "budget_overview": None}
         crew_thread = threading.Thread(
             target=run_crew_sync,
             args=(trip_id, crew_inputs, result_container, trip_progress),
@@ -504,6 +617,9 @@ async def run_crew_async(trip_id: str, inputs: Dict[str, Any]):
                     message = "Researching destination and gathering information..."
                 elif current_step == 2:
                     message = "Reviewing and analyzing recommendations..."
+                    # Check if budget overview is available after research completes
+                    if result_container.get("budget_overview"):
+                        trip_progress[trip_id]["budget_overview"] = result_container["budget_overview"]
                 elif current_step == 3:
                     message = "Creating your personalized itinerary..."
                 else:
@@ -543,6 +659,11 @@ async def run_crew_async(trip_id: str, inputs: Dict[str, Any]):
         # Check if crew completed successfully
         if not result_container["success"]:
             raise Exception(result_container.get("error", "Crew execution failed"))
+        
+        # Store budget overview if available (after research completes)
+        if result_container.get("budget_overview"):
+            trip_progress[trip_id]["budget_overview"] = result_container["budget_overview"]
+            print(f"[{trip_id}] 💰 Budget overview stored in progress")
         
         # Update progress - Planning phase completion
         trip_progress[trip_id].update({

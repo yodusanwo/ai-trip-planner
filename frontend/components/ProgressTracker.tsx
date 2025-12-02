@@ -24,6 +24,13 @@ interface ProgressData {
   progress: number
   message: string
   estimated_time_remaining?: number
+  budget_overview?: {
+    overall?: string
+    accommodation?: string
+    food?: string
+    transportation?: string
+    transportation_note?: string
+  }
   debug?: {
     current_task?: number
     task_name?: string
@@ -314,42 +321,6 @@ export default function ProgressTracker({ tripId, onComplete, tripDetails }: Pro
     return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`
   }
 
-  // Generate budget overview based on budget level
-  const getBudgetOverview = (budget: string, destination: string) => {
-    const budgetRanges = {
-      budget: {
-        overall: { min: 30, max: 80 },
-        accommodation: { min: 15, max: 40 },
-        food: { min: 10, max: 25 },
-        transportation: { min: 5, max: 15 },
-        note: "Budget-friendly options with hostels, street food, and public transport"
-      },
-      moderate: {
-        overall: { min: 100, max: 200 },
-        accommodation: { min: 50, max: 120 },
-        food: { min: 30, max: 50 },
-        transportation: { min: 20, max: 30 },
-        note: "Comfortable mid-range hotels, local restaurants, and convenient transport"
-      },
-      luxury: {
-        overall: { min: 300, max: 600 },
-        accommodation: { min: 150, max: 400 },
-        food: { min: 80, max: 150 },
-        transportation: { min: 70, max: 50 },
-        note: "Premium hotels, fine dining, and private transportation"
-      }
-    }
-
-    const range = budgetRanges[budget as keyof typeof budgetRanges] || budgetRanges.moderate
-    
-    return {
-      overall: `$${range.overall.min} - $${range.overall.max}/day`,
-      accommodation: `$${range.accommodation.min}-$${range.accommodation.max}`,
-      food: `$${range.food.min}-$${range.food.max}`,
-      transportation: `$${range.transportation.min}-$${range.transportation.max}`,
-      note: range.note
-    }
-  }
 
   return (
     <div className="space-y-6">
@@ -533,47 +504,57 @@ export default function ProgressTracker({ tripId, onComplete, tripDetails }: Pro
             )}
           </div>
 
-          {/* Budget Overview */}
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <h4 className="text-lg font-semibold text-gray-800 mb-4">
-              💰 Budget Overview
-            </h4>
-            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-5 border-2 border-green-200">
-              {(() => {
-                const budgetInfo = getBudgetOverview(tripDetails.budget, tripDetails.destination)
-                return (
-                  <>
-                    <div className="mb-4">
-                      <p className="text-sm text-gray-600 mb-1">Overall Budget:</p>
-                      <p className="text-xl font-bold text-green-700">{budgetInfo.overall}</p>
-                    </div>
-                    
-                    <div className="space-y-2 mb-4">
-                      <p className="text-sm font-semibold text-gray-700 mb-2">Daily Costs:</p>
-                      <div className="space-y-1.5 text-sm">
+          {/* Budget Overview - Only show after researcher completes (step 1) */}
+          {progress.budget_overview && progress.current_step && progress.current_step >= 2 && (
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <h4 className="text-lg font-semibold text-gray-800 mb-4">
+                💰 Budget Overview
+              </h4>
+              <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-5 border-2 border-green-200">
+                {progress.budget_overview.overall && (
+                  <div className="mb-4">
+                    <p className="text-sm text-gray-600 mb-1">Overall Budget:</p>
+                    <p className="text-xl font-bold text-green-700">{progress.budget_overview.overall}</p>
+                  </div>
+                )}
+                
+                {(progress.budget_overview.accommodation || progress.budget_overview.food || progress.budget_overview.transportation) && (
+                  <div className="space-y-2 mb-4">
+                    <p className="text-sm font-semibold text-gray-700 mb-2">Daily Costs:</p>
+                    <div className="space-y-1.5 text-sm">
+                      {progress.budget_overview.accommodation && (
                         <div className="flex justify-between">
                           <span className="text-gray-700">Accommodation:</span>
-                          <span className="font-medium text-gray-800">{budgetInfo.accommodation}</span>
+                          <span className="font-medium text-gray-800">{progress.budget_overview.accommodation}</span>
                         </div>
+                      )}
+                      {progress.budget_overview.food && (
                         <div className="flex justify-between">
                           <span className="text-gray-700">Food:</span>
-                          <span className="font-medium text-gray-800">{budgetInfo.food}</span>
+                          <span className="font-medium text-gray-800">{progress.budget_overview.food}</span>
                         </div>
+                      )}
+                      {progress.budget_overview.transportation && (
                         <div className="flex justify-between">
                           <span className="text-gray-700">Transportation:</span>
-                          <span className="font-medium text-gray-800">{budgetInfo.transportation}</span>
+                          <span className="font-medium text-gray-800">
+                            {progress.budget_overview.transportation}
+                            {progress.budget_overview.transportation_note && (
+                              <span className="text-xs text-gray-600 ml-2">({progress.budget_overview.transportation_note})</span>
+                            )}
+                          </span>
                         </div>
-                      </div>
+                      )}
                     </div>
-                    
-                    <p className="text-xs text-gray-600 italic mt-3 pt-3 border-t border-green-200">
-                      {budgetInfo.note}
-                    </p>
-                  </>
-                )
-              })()}
+                  </div>
+                )}
+                
+                <p className="text-xs text-gray-600 italic mt-3 pt-3 border-t border-green-200">
+                  Based on actual local costs in {tripDetails.destination}
+                </p>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
     </div>

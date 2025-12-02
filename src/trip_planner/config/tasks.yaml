@@ -1,12 +1,22 @@
 research_task:
   description: >
-    Research {destination} for {duration} trip with {budget} budget level. Find: 5-7 top attractions, 
-    3-5 restaurants, 2-3 activities, transport, costs, key tips. Include detailed budget breakdown:
-    daily accommodation costs, food costs, transportation costs, and overall daily budget range.
-    Research should match the {budget} budget level (budget-friendly, moderate, or luxury).
-    Be brief but include specific cost ranges.
+    Research {destination} for {duration} trip. Find: 5-7 top attractions, 
+    3-5 restaurants, 2-3 activities, transport, costs, key tips. 
+    
+    IMPORTANT: At the end of your research, include a BUDGET OVERVIEW section with actual local costs for {destination}.
+    Format it as:
+    
+    BUDGET OVERVIEW:
+    Overall Budget: $X - $Y/day (based on actual local costs in {destination})
+    Daily Costs:
+    - Accommodation: $X-$Y (actual local hotel/hostel prices)
+    - Food: $X-$Y (actual local restaurant/meal costs)
+    - Transportation: $X-$Y (actual local transport costs, include any passes if relevant)
+    
+    Research actual current costs for {destination}, not generic estimates. Base costs on real local prices.
   expected_output: >
-    Brief report: attractions, restaurants, activities, transport, detailed budget breakdown with daily costs, tips.
+    Brief report: attractions, restaurants, activities, transport, tips. 
+    Must include BUDGET OVERVIEW section at the end with actual local costs for {destination}.
   agent: trip_researcher
 
 review_task:
