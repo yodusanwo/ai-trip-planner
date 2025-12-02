@@ -150,6 +150,48 @@ def validate_input(text: str) -> bool:
     return True
 
 
+def spell_check_text(text: str) -> Dict[str, Any]:
+    """Check spelling and return suggestions for misspelled words"""
+    try:
+        from spellchecker import SpellChecker
+        
+        spell = SpellChecker()
+        
+        # Split text into words (handle punctuation)
+        words = re.findall(r'\b\w+\b', text.lower())
+        misspelled = spell.unknown(words)
+        
+        suggestions = {}
+        for word in misspelled:
+            # Get suggestions (top 3) - candidates() returns a set, convert to list
+            candidates = list(spell.candidates(word))[:3] if spell.candidates(word) else []
+            suggestions[word] = candidates
+        
+        return {
+            "has_errors": len(misspelled) > 0,
+            "misspelled_words": list(misspelled),
+            "suggestions": suggestions,
+            "original_text": text
+        }
+    except ImportError:
+        # Fallback if spellchecker not available
+        return {
+            "has_errors": False,
+            "misspelled_words": [],
+            "suggestions": {},
+            "original_text": text,
+            "error": "Spell checker not available"
+        }
+    except Exception as e:
+        return {
+            "has_errors": False,
+            "misspelled_words": [],
+            "suggestions": {},
+            "original_text": text,
+            "error": str(e)
+        }
+
+
 def get_client_id(request_client_id: Optional[str] = None) -> str:
     """Get or create client ID for tracking"""
     if request_client_id:
@@ -922,6 +964,17 @@ async def get_result(trip_id: str):
         trip_id=trip_id,
         html_content=trip_results[trip_id],
     )
+
+
+@app.post("/api/spell-check")
+async def spell_check(request: Dict[str, str]):
+    """Spell check text and return suggestions"""
+    text = request.get("text", "")
+    if not text:
+        raise HTTPException(status_code=400, detail="Text is required")
+    
+    result = spell_check_text(text)
+    return result
 
 
 @app.get("/api/trips/{trip_id}/result/pdf")
