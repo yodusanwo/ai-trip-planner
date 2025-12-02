@@ -68,8 +68,7 @@ if os.getenv('MODEL'):
     os.environ['OPENAI_MODEL_NAME'] = os.getenv('MODEL')
 
 # Import CrewAI components
-import sys
-sys.path.append(str(Path(__file__).parent.parent))
+# Note: In Docker, src/ is in the same directory as main.py (backend/)
 from src.trip_planner.crew import TripPlanner
 
 # Import security config (try local first, then parent)
