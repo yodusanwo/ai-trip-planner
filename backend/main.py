@@ -343,11 +343,31 @@ def html_to_pdf(html_content: str) -> bytes:
         )
     
     try:
+        print(f"[PDF] WeasyPrint is available, converting HTML to PDF...")
+        print(f"[PDF] HTML content length: {len(html_content)} characters")
+        
+        # Create HTML object
         html = HTML(string=html_content)
+        
+        # Generate PDF
         pdf_bytes = html.write_pdf()
+        
+        # Validate PDF bytes
+        if not pdf_bytes or len(pdf_bytes) < 100:
+            raise Exception(f"Generated PDF is too small ({len(pdf_bytes)} bytes), likely invalid")
+        
+        # Check if PDF starts with PDF magic number (%PDF)
+        if not pdf_bytes.startswith(b'%PDF'):
+            raise Exception(f"Generated PDF does not start with PDF magic number. First bytes: {pdf_bytes[:20]}")
+        
+        print(f"[PDF] PDF generated successfully: {len(pdf_bytes)} bytes")
+        print(f"[PDF] PDF starts with: {pdf_bytes[:10]}")
+        
         return pdf_bytes
     except Exception as e:
-        print(f"Error converting HTML to PDF: {e}")
+        print(f"[PDF] Error converting HTML to PDF: {e}")
+        import traceback
+        traceback.print_exc()
         raise Exception(f"Failed to generate PDF: {str(e)}")
 
 
@@ -791,53 +811,21 @@ async def run_crew_async(trip_id: str, inputs: Dict[str, Any]):
         if result_container.get("result"):
             result = result_container["result"]
             
-            print(f"[{trip_id}] Extracting HTML from CrewAI result...")
-            print(f"[{trip_id}] Result type: {type(result)}")
-            print(f"[{trip_id}] Result attributes: {dir(result)}")
-            
             # Extract HTML from the result object
             # CrewAI results can be accessed via various attributes
             if hasattr(result, 'tasks_output') and result.tasks_output:
-                print(f"[{trip_id}] Found tasks_output with {len(result.tasks_output)} tasks")
-                # Get the last task output (planning task) - this should contain the HTML
-                for idx, task_output in enumerate(reversed(result.tasks_output)):
-                    output_str = None
-                    if hasattr(task_output, 'raw'):
-                        output_str = str(task_output.raw)
-                    elif hasattr(task_output, 'output'):
-                        output_str = str(task_output.output)
-                    else:
-                        output_str = str(task_output)
-                    
-                    print(f"[{trip_id}] Task {idx} output length: {len(output_str) if output_str else 0}")
-                    
-                    # Look for HTML content (should be the longest and contain HTML tags)
-                    if output_str and len(output_str) > 100:
-                        # Check if it looks like HTML (contains HTML tags)
-                        if '<html' in output_str.lower() or '<body' in output_str.lower() or '<div' in output_str.lower():
-                            html_content = output_str
-                            print(f"[{trip_id}] Found HTML content in task {idx} ({len(output_str)} chars)")
-                            break
-                        elif idx == 0:  # If no HTML found, use the last task output anyway
-                            html_content = output_str
-                            print(f"[{trip_id}] Using last task output as HTML ({len(output_str)} chars)")
+                # Get the last task output (planning task)
+                for task_output in reversed(result.tasks_output):
+                    output_str = str(task_output.raw) if hasattr(task_output, 'raw') else str(task_output)
+                    if output_str and len(output_str) > 100:  # Likely contains the HTML
+                        html_content = output_str
+                        break
             elif hasattr(result, 'raw'):
                 html_content = str(result.raw)
-                print(f"[{trip_id}] Using result.raw ({len(html_content)} chars)")
             elif hasattr(result, 'output'):
                 html_content = str(result.output)
-                print(f"[{trip_id}] Using result.output ({len(html_content)} chars)")
             else:
                 html_content = str(result)
-                print(f"[{trip_id}] Using str(result) ({len(html_content)} chars)")
-            
-            # Validate that we didn't accidentally get a progress message
-            if html_content and ("trip planning still in progress" in html_content.lower() or 
-                                 "trip in progress" in html_content.lower() or
-                                 "status.*running" in html_content.lower()):
-                print(f"[{trip_id}] WARNING: Extracted content appears to be a progress message, not HTML!")
-                print(f"[{trip_id}] Content preview: {html_content[:200]}")
-                html_content = None  # Reset to try fallback
         
         # Fallback: Try reading from file if result extraction didn't work
         if not html_content or len(html_content) < 100:
@@ -1107,17 +1095,34 @@ async def get_result_pdf(trip_id: str):
             print(f"[PDF] WARNING: HTML content appears to contain progress message!")
             print(f"[PDF] This suggests the HTML was not properly extracted from CrewAI result")
         
+        # Check WeasyPrint availability
+        if not WEASYPRINT_AVAILABLE:
+            raise HTTPException(
+                status_code=503,
+                detail="PDF generation is not available. WeasyPrint system libraries are not installed."
+            )
+        
         pdf_bytes = html_to_pdf(html_content)
         
-        print(f"[PDF] PDF generated successfully: {len(pdf_bytes)} bytes")
+        # Final validation before returning
+        if not pdf_bytes or len(pdf_bytes) < 100:
+            raise Exception(f"Generated PDF is invalid (size: {len(pdf_bytes)} bytes)")
+        
+        if not pdf_bytes.startswith(b'%PDF'):
+            raise Exception("Generated PDF does not have valid PDF header")
+        
+        print(f"[PDF] Returning PDF response: {len(pdf_bytes)} bytes")
         
         return Response(
             content=pdf_bytes,
             media_type="application/pdf",
             headers={
-                "Content-Disposition": f"attachment; filename=trip_plan_{trip_id}.pdf"
+                "Content-Disposition": f"attachment; filename=trip_plan_{trip_id}.pdf",
+                "Content-Length": str(len(pdf_bytes))
             }
         )
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"[PDF] Error generating PDF: {e}")
         import traceback
