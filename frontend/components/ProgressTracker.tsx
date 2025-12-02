@@ -46,10 +46,13 @@ export default function ProgressTracker({ tripId, onComplete }: ProgressTrackerP
   const startTimeRef = useRef<number | null>(null)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   const progressRef = useRef<ProgressData | null>(null)
+  const timerActiveRef = useRef<boolean>(false)
 
   // Update progress ref whenever progress changes (for interval callback to check)
   useEffect(() => {
     progressRef.current = progress
+    // Update timer active flag based on status
+    timerActiveRef.current = progress?.status === 'running'
   }, [progress])
 
   // Timer effect - only runs while trip is in progress
@@ -67,14 +70,20 @@ export default function ProgressTracker({ tripId, onComplete }: ProgressTrackerP
         startTimeRef.current = Date.now()
       }
 
+      // Mark timer as active
+      timerActiveRef.current = true
+
       // Start interval to update elapsed time every second
       intervalRef.current = setInterval(() => {
-        // Check current progress status directly from ref (always up-to-date)
+        // Check both the active flag and current progress status
         const currentProgress = progressRef.current
-        if (currentProgress?.status === 'running' && startTimeRef.current) {
+        const isActive = timerActiveRef.current && currentProgress?.status === 'running'
+        
+        if (isActive && startTimeRef.current) {
           setElapsedTime(Math.floor((Date.now() - startTimeRef.current) / 1000))
         } else {
           // Status changed to completed/error, stop the interval immediately
+          timerActiveRef.current = false
           if (intervalRef.current) {
             clearInterval(intervalRef.current)
             intervalRef.current = null
@@ -89,6 +98,7 @@ export default function ProgressTracker({ tripId, onComplete }: ProgressTrackerP
       }, 1000)
     } else if (progress?.status === 'completed' || progress?.status === 'error') {
       // Stop timer when trip is completed or errored
+      timerActiveRef.current = false
       // Calculate final elapsed time once
       if (startTimeRef.current) {
         const finalTime = Math.floor((Date.now() - startTimeRef.current) / 1000)
