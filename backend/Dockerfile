@@ -7,7 +7,6 @@ RUN apt-get update && apt-get install -y \
     libpangoft2-1.0-0 \
     libharfbuzz0b \
     libcairo2 \
-    libgdk-pixbuf2.0 \
     libglib2.0-0 \
     libgobject-2.0-0 \
     libffi-dev \
@@ -29,8 +28,10 @@ RUN pip install --no-cache-dir --upgrade pip && \
 COPY . .
 
 # Expose port (Railway will set PORT env var)
-EXPOSE $PORT
+# Note: EXPOSE doesn't support variable expansion, so we use a default
+EXPOSE 8000
 
 # Run the application
-CMD uvicorn main:app --host 0.0.0.0 --port $PORT
+# Use shell form to ensure $PORT is expanded from environment variable
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
 
