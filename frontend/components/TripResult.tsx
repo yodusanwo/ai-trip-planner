@@ -136,7 +136,7 @@ export default function TripResult({ tripId }: TripResultProps) {
           srcDoc={htmlContent}
           className="w-full h-[600px] border-0"
           title="Trip Plan Preview"
-          sandbox="allow-same-origin"
+          sandbox="allow-same-origin allow-scripts"
         />
       </div>
     </div>
