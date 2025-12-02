@@ -6,6 +6,7 @@ import ProgressTracker from '@/components/ProgressTracker'
 import TripResult from '@/components/TripResult'
 import UsageStats from '@/components/UsageStats'
 import WelcomeSection from '@/components/WelcomeSection'
+import PlanningProgressPlaceholder from '@/components/PlanningProgressPlaceholder'
 
 export default function Home() {
   const [tripId, setTripId] = useState<string | null>(null)
@@ -79,8 +80,8 @@ export default function Home() {
             />
           </div>
 
-          {/* Progress Tracker */}
-          {tripId && (
+          {/* Progress Tracker or Placeholder */}
+          {tripId ? (
             <div className="bg-white rounded-lg shadow-lg p-6" id="progress-anchor">
               <h2 className="text-2xl font-semibold mb-4 text-gray-800">
                 Planning Progress
@@ -91,6 +92,8 @@ export default function Home() {
                 tripDetails={tripDetails}
               />
             </div>
+          ) : (
+            <PlanningProgressPlaceholder />
           )}
         </div>
 
