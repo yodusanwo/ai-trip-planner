@@ -61,8 +61,8 @@ export default function Home() {
           </p>
         </header>
 
-        {/* Usage Stats */}
-        {clientId && <UsageStats clientId={clientId} />}
+        {/* Usage Stats - Commented out to hide from UI */}
+        {/* {clientId && <UsageStats clientId={clientId} />} */}
 
         {/* Welcome Section - Show when no active trip */}
         {!tripId && !showResult && <WelcomeSection />}
