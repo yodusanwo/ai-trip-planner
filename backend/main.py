@@ -1113,12 +1113,19 @@ async def get_result_pdf(trip_id: str):
         
         print(f"[PDF] Returning PDF response: {len(pdf_bytes)} bytes")
         
+        # Ensure pdf_bytes is bytes, not string
+        if isinstance(pdf_bytes, str):
+            pdf_bytes = pdf_bytes.encode('latin-1')
+        
         return Response(
             content=pdf_bytes,
             media_type="application/pdf",
             headers={
                 "Content-Disposition": f"attachment; filename=trip_plan_{trip_id}.pdf",
-                "Content-Length": str(len(pdf_bytes))
+                "Content-Length": str(len(pdf_bytes)),
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0"
             }
         )
     except HTTPException:
