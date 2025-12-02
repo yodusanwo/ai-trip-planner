@@ -44,17 +44,45 @@ export default function ProgressTracker({ tripId, onComplete }: ProgressTrackerP
   const [elapsedTime, setElapsedTime] = useState(0)
   const eventSourceRef = useRef<EventSource | null>(null)
   const startTimeRef = useRef<number | null>(null)
+  const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
+  // Timer effect - only runs while trip is in progress
   useEffect(() => {
-    startTimeRef.current = Date.now()
-    const interval = setInterval(() => {
-      if (startTimeRef.current) {
-        setElapsedTime(Math.floor((Date.now() - startTimeRef.current) / 1000))
-      }
-    }, 1000)
+    // Clear any existing interval first
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current)
+      intervalRef.current = null
+    }
 
-    return () => clearInterval(interval)
-  }, [])
+    // Only start timer if trip is running
+    if (progress?.status === 'running') {
+      // Initialize start time if not already set
+      if (!startTimeRef.current) {
+        startTimeRef.current = Date.now()
+      }
+
+      // Start interval to update elapsed time every second
+      intervalRef.current = setInterval(() => {
+        if (startTimeRef.current) {
+          setElapsedTime(Math.floor((Date.now() - startTimeRef.current) / 1000))
+        }
+      }, 1000)
+    } else if (progress?.status === 'completed' || progress?.status === 'error') {
+      // Stop timer when trip is completed or errored
+      // Calculate final elapsed time once
+      if (startTimeRef.current) {
+        const finalTime = Math.floor((Date.now() - startTimeRef.current) / 1000)
+        setElapsedTime(finalTime)
+      }
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+    }
+  }, [progress?.status])
 
   useEffect(() => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
