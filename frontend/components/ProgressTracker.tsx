@@ -17,7 +17,7 @@ interface ProgressTrackerProps {
 }
 
 interface ProgressData {
-  status: 'running' | 'completed' | 'error'
+  status: 'running' | 'completed' | 'error' | 'connected'
   current_agent?: string
   current_step?: number
   total_steps?: number
