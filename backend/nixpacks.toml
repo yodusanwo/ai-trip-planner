@@ -7,6 +7,8 @@ nixPkgs = [
     "cairo",
     "pango",
     "gdk-pixbuf",
+    "glib",
+    "gobject-introspection",
     "libffi",
     "shared-mime-info",
     "harfbuzz"
