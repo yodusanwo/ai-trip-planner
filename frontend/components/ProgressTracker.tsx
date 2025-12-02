@@ -45,6 +45,12 @@ export default function ProgressTracker({ tripId, onComplete }: ProgressTrackerP
   const eventSourceRef = useRef<EventSource | null>(null)
   const startTimeRef = useRef<number | null>(null)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
+  const statusRef = useRef<string | undefined>(undefined)
+
+  // Update status ref whenever progress changes
+  useEffect(() => {
+    statusRef.current = progress?.status
+  }, [progress?.status])
 
   // Timer effect - only runs while trip is in progress
   useEffect(() => {
@@ -63,8 +69,15 @@ export default function ProgressTracker({ tripId, onComplete }: ProgressTrackerP
 
       // Start interval to update elapsed time every second
       intervalRef.current = setInterval(() => {
-        if (startTimeRef.current) {
+        // Double-check status before updating (in case status changed between intervals)
+        if (statusRef.current === 'running' && startTimeRef.current) {
           setElapsedTime(Math.floor((Date.now() - startTimeRef.current) / 1000))
+        } else {
+          // Status changed, stop the interval
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current)
+            intervalRef.current = null
+          }
         }
       }, 1000)
     } else if (progress?.status === 'completed' || progress?.status === 'error') {
@@ -73,6 +86,8 @@ export default function ProgressTracker({ tripId, onComplete }: ProgressTrackerP
       if (startTimeRef.current) {
         const finalTime = Math.floor((Date.now() - startTimeRef.current) / 1000)
         setElapsedTime(finalTime)
+        // Reset start time to prevent any further updates
+        startTimeRef.current = null
       }
     }
 
