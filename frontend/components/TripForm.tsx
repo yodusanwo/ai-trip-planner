@@ -43,8 +43,6 @@ export default function TripForm({ clientId, onTripCreated }: TripFormProps) {
     'Nature & Outdoors',
     'Nightlife',
     'Family-Friendly',
-    'Luxury',
-    'Budget-Friendly',
   ]
 
   const toggleTravelStyle = (style: string) => {

@@ -55,7 +55,8 @@ class TripPlanner:
                 "and the traveler's preferences.",
             backstory="""You are an expert itinerary designer who transforms research into engaging, day-by-day travel plans.
                 You integrate user preferences, logistical realities, and creative flair to produce well-balanced, 
-                budget-aware, and delightful travel experiences.""",
+                budget-aware, and delightful travel experiences.
+                **You are highly skilled at adapting every element of the itinerary to match the traveler's preferred travel style.""",
             tools=[search_tool],
             verbose=True,
             allow_delegation=False,
@@ -106,6 +107,7 @@ class TripPlanner:
             - Transportation details (local travel, airport transfers, etc.)
             - Estimated daily costs and total budget summary
             - Practical tips and cultural insights
+            **IMPORTANT:** Ensure that every aspect of the trip reflects the chosen **travel style** ({travel_style}) — including the type of activities, accommodation, pacing, transportation mode, and dining options.
             **Output:** A visually structured HTML document containing the full itinerary.""",
             agent=planner,
             expected_output="Complete HTML-formatted trip itinerary"
