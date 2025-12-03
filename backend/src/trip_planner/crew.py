@@ -76,7 +76,7 @@ class TripPlanner:
             - Best areas to neighborhoods to stay in
             - Local Transportation options
             - Cultural customs and tips
-            Safety, visas, and seasonal info
+            - Safety, visas, and seasonal info
             - Budget breakdown
             **Output:** A well-organized, bullet-pointed research report with budget breakdowns and source links
             Provide detailed research findings including a budget overview.""",
@@ -107,8 +107,73 @@ class TripPlanner:
             - Transportation details (local travel, airport transfers, etc.)
             - Estimated daily costs and total budget summary
             - Practical tips and cultural insights
-            **IMPORTANT:** Ensure that every aspect of the trip reflects the chosen **travel style** ({travel_style}) — including the type of activities, accommodation, pacing, transportation mode, and dining options.
-            **Output:** A visually structured HTML document containing the full itinerary.""",
+            **CRITICAL REQUIREMENTS:**
+            
+            1. **Travel Style Integration:** Every aspect of the trip MUST reflect the chosen **travel style** ({travel_style}). 
+               This includes:
+               - Type of activities (e.g., adventure activities for "Adventure", museums for "Cultural", beaches for "Relaxation")
+               - Accommodation style (e.g., luxury resorts for "Luxury", hostels for "Budget-Friendly", family hotels for "Family-Friendly")
+               - Pacing and schedule (e.g., relaxed for "Relaxation", packed for "Adventure")
+               - Transportation mode (e.g., private transfers for "Luxury", public transport for "Budget-Friendly")
+               - Dining options (e.g., fine dining for "Luxury", street food for "Food & Dining", family restaurants for "Family-Friendly")
+            
+            2. **HTML Output Format:** You MUST output a complete, valid HTML document. The HTML should contain the itinerary 
+               structured as shown below. Use proper HTML tags (<html>, <head>, <body>, <h1>, <h2>, <p>, <ul>, <li>, etc.) 
+               with inline CSS styling for visual appeal.
+            
+            3. **Required Structure:** Follow this exact structure within your HTML output:
+            
+            =============================
+            
+            <h1>{duration}-Day {travel_style}-Friendly Itinerary in {destination}</h1>
+            
+            <h2>Day 1: [Title of the Day]</h2>
+            <p><strong>Morning:</strong> [Activity with specific details]</p>
+            <p><strong>Afternoon:</strong> [Activity with specific details]</p>
+            <p><strong>Evening:</strong> [Activity with specific details]</p>
+            <p><strong>Estimated Costs:</strong></p>
+            <ul>
+                <li>Transportation: $X</li>
+                <li>Food: $X</li>
+                <li>Activities: $X</li>
+                <li><strong>Total: $X</strong></li>
+            </ul>
+            
+            <h2>Day 2: [Title of the Day]</h2>
+            [Repeat structure for each day]
+            
+            <h2>Day {duration}: Departure</h2>
+            <p><strong>Morning:</strong> [Departure summary]</p>
+            <p><strong>Afternoon:</strong> [Any last activity or shopping]</p>
+            <p><strong>Evening:</strong> [Transport to airport]</p>
+            <p><strong>Estimated Costs:</strong></p>
+            <ul>
+                <li>Transportation: $X</li>
+                <li>Food: $X</li>
+                <li><strong>Total: $X</strong></li>
+            </ul>
+            
+            <h2>Total Estimated Budget Summary</h2>
+            <ul>
+                <li>Accommodation ({duration} nights): $XXXX</li>
+                <li>Total Food & Drink: $XXX</li>
+                <li>Total Attractions: $XXX</li>
+                <li>Total Transportation: $XX</li>
+                <li><strong>Grand Total: ~$XXXX</strong></li>
+            </ul>
+            
+            =============================
+            
+            **MANDATORY INSTRUCTIONS:**
+            - Output the COMPLETE HTML code directly in your response. Do NOT write references like "The itinerary is provided in the HTML document above."
+            - Keep all sections present and in the exact order shown.
+            - Use HTML tags with inline CSS for styling (colors, fonts, spacing, etc.) to make it visually appealing.
+            - Include specific restaurant names, activity names, and transportation details.
+            - Use realistic and consistent pricing that matches the budget level ({budget}).
+            - Ensure the travel style ({travel_style}) influences EVERY element: activities, accommodations, pacing, transportation, and dining.
+            - Always end with the complete "Total Estimated Budget Summary" section in the exact format shown above.
+            - Do NOT change the structure. Keep all headers (e.g., "Day 1:", "Estimated Costs") and formatting consistent.
+""",
             agent=planner,
             expected_output="Complete HTML-formatted trip itinerary"
         )
