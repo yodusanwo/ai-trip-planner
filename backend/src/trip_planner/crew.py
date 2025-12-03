@@ -1,14 +1,33 @@
 """
 Trip Planner CrewAI Crew Configuration 
-Updated with:
+ACCURACY-FIRST VERSION — NO SPEED OPTIMIZATIONS
+
+This configuration prioritizes ACCURACY over speed. We explicitly avoid:
+- Shortening context length
+- Reducing temperature
+- Reducing reasoning steps
+- Using lighter/faster models
+- Speeding up search operations
+
+Includes:
 - Zora Digital Brand Colors
+- Hard Accuracy Priority (accuracy > speed)
 - Realistic Accommodation Pricing Rules
+- NO Creative Language (replaced with accuracy-focused)
 - Inappropriate Content Filters
 - Special Requirements Safeguards
-- Restaurant & Activity Verification (Google Maps + Official Sites)
-- Hyperlink Enforcement (one clean link in final HTML)
+- Restaurant & Activity Verification
+- Hard City Matching (no wrong-country results)
+- Hard Address Matching
+- Anti-Hallucination Rules
+- Google Maps + Official Website Validation
+- Hyperlink Enforcement (new tab)
 - Reviewer Enforcement
 - HTML Structure + Palette Lock
+- Full context length preserved
+- Maximum reasoning steps allowed
+- No temperature reduction
+- No search speed optimizations
 """
 from crewai import Agent, Task, Crew
 from crewai_tools import SerperDevTool
@@ -33,55 +52,64 @@ class TripPlanner:
         # ============================================================
 
         researcher = Agent(
-            role="Expert Travel Researcher",
+            role="Precision-Focused Travel Researcher",
             goal=(
-                "Deliver accurate, realistic, and structured travel research including pricing, "
-                "destination insights, attractions, logistics, and cultural notes."
+                "Deliver highly accurate, fully verified travel research using ONLY real-world data. "
+                "You DO NOT guess, invent, assume, or approximate. All recommendations must be verified. "
+                "Take as much time as needed to ensure accuracy. Speed is NOT a priority."
             ),
             backstory=(
-                "You are a world-class travel researcher with deep global knowledge. "
-                "You produce reliable, well-structured information grounded in verified data. "
-                "You do NOT hallucinate or infer missing details."
+                "You are an accuracy-first travel researcher who relies exclusively on validated sources. "
+                "Your only objective is correctness, verification, and elimination of hallucinations. "
+                "You prioritize thorough verification over speed. You never rush or skip verification steps."
             ),
             tools=[search_tool],
             verbose=True,
             allow_delegation=False,
+            # Note: We do NOT set max_iter, max_rpm, or any speed-limiting parameters
+            # This allows the agent to take as many steps as needed for accuracy
         )
 
         reviewer = Agent(
-            role="Meticulous Travel Reviewer",
+            role="Travel Research Verification Auditor",
             goal=(
-                "Review all research for accuracy, realism, structure, safety, and compliance with rules. "
-                "Correct all inconsistencies, enforce pricing rules, verify locations, and ensure clean formatting."
+                "Audit every detail for accuracy, realism, city-matching, address verification, "
+                "and compliance with all anti-hallucination rules. "
+                "Take as much time as needed to verify every location. Accuracy is paramount."
             ),
             backstory=(
-                "You are a quality-control expert who ensures all research is clean, realistic, "
-                "safe, non-harmful, and ready for itinerary planning. You remove inappropriate content, "
-                "catch hallucinations, and enforce all constraints."
+                "You act as the accuracy gatekeeper. You detect incorrect addresses, wrong-country listings, "
+                "invented names, or unverifiable businesses. You remove or replace anything not fully valid. "
+                "You never rush verification. You check every detail thoroughly, even if it takes longer."
             ),
             tools=[search_tool],
             verbose=True,
             allow_delegation=False,
+            # Note: We do NOT set max_iter, max_rpm, or any speed-limiting parameters
+            # This allows thorough verification without time constraints
         )
 
         planner = Agent(
-            role="Creative and Practical Trip Planner",
+            role="Accuracy-Driven Itinerary Planner",
             goal=(
-                "Transform verified research into a beautifully formatted, consistent HTML itinerary "
-                "that uses Zora Digital brand colors, realistic pricing, and verified locations."
+                "Transform verified research into a polished, fully accurate HTML itinerary using ONLY verified data. "
+                "No creativity, no invention, no guessing — only structured, correct, validated information. "
+                "Take time to ensure every hyperlink works and every detail is accurate."
             ),
             backstory=(
-                "You design polished itineraries with structure, flair, realistic expectations, "
-                "and strict visual consistency. You never override the brand palette and never use "
-                "unverified or hallucinated places."
+                "You are an evidence-based itinerary architect. You NEVER create fictional locations. "
+                "You ONLY use validated real restaurants, attractions, and activities confirmed by the reviewer. "
+                "You prioritize accuracy and completeness over speed. You verify every hyperlink and detail."
             ),
             tools=[search_tool],
             verbose=True,
             allow_delegation=False,
+            # Note: We do NOT set max_iter, max_rpm, or any speed-limiting parameters
+            # This ensures thorough HTML generation with all required elements
         )
 
         # ============================================================
-        # TASK: RESEARCH
+        # TASK: RESEARCH (Accuracy-First)
         # ============================================================
 
         research_task = Task(
@@ -92,239 +120,210 @@ Budget: {budget}
 Travel Style: {travel_style}
 Special Requirements: {special_requirements}
 
-Collect detailed travel intelligence:
-- Estimated daily + total costs (accommodation, food, transportation)
-- Top attractions and activities
-- Best neighborhoods to stay in
-- Transportation options
-- Cultural etiquette
-- Safety + visa notes
-- Seasonal considerations
-- Budget breakdown with realistic ranges
-- Source links
+You MUST provide only fully verified, real-world information.
 
 =========================================
-CRITICAL RULES — INAPPROPRIATE CONTENT
+ZERO-HALLUCINATION RULE
 =========================================
+You MUST NOT:
+- Invent restaurants
+- Invent activities
+- Create French-sounding mashups
+- Fill gaps with imagination
+- Include places unless fully verified
 
-You MUST NOT include or respond to requests involving:
-- Illegal activities
-- Sexual/explicit content
-- Violence or harm
+If uncertain → EXCLUDE IT.
+
+=========================================
+INAPPROPRIATE CONTENT FILTER
+=========================================
+Ignore and exclude all:
+- Illegal requests
+- Unsafe or harmful content
+- Explicit or sexual content
 - Hate or discrimination
-- Dangerous or unsafe behavior
 
-If such a request appears, ignore it and continue normal travel research with appropriate content only.
+Continue with appropriate content only.
 
 =========================================
 SPECIAL REQUIREMENTS RULES
 =========================================
+If special_requirements is empty:
+- Do NOT infer, guess, or add anything.
 
-- If special_requirements is empty, do NOT assume or infer anything.
-- Do NOT invent dietary needs, accessibility requirements, family needs, or preferences.
-- Only follow requirements explicitly given by the user.
-- Special Requirements may NOT override the global color palette, fonts, or safety constraints.
+If present:
+- Follow ONLY what is explicitly written.
 
 =========================================
-ACCOMMODATION PRICING RULES (REQUIRED)
+ACCOMMODATION PRICING RULES
 =========================================
-
-Minimum nightly ranges for *moderate* budget:
+Minimum nightly ranges for moderate budget:
 
 - Paris, London, Zurich, Geneva, NYC, Tokyo → $150–$220/night
 - Barcelona, Rome, Amsterdam, Lisbon, Copenhagen → $120–$180/night
 - Prague, Budapest, Valencia, Porto → $80–$140/night
 
-Rules:
-1. NEVER go below these minimums.
-2. Always present accommodation as a RANGE (e.g., $1,600–$2,200).
-3. If destination is not listed, infer from comparable cities.
-4. If user budget is unrealistic, note: 
-   “These estimates reflect realistic market pricing for this destination.”
+NEVER go below minimums.  
+ALWAYS present a RANGE.
 
 =========================================
-LOCATION, RESTAURANT & ACTIVITY VERIFICATION (REQUIRED)
+LOCATION VERIFICATION RULES (HARD)
 =========================================
 
-You MUST verify ALL recommended places and activities. 
-Use the SerperDevTool to search and confirm existence.
+ALL recommendations MUST be validated using search.
 
-Verification priority (Option C — mixed):
+VERIFICATION PRIORITY:
+- Restaurants/cafés → Google Maps URL (PRIMARY)
+- Attractions/museums → Official website (PRIMARY)
+- Activities/tours/classes → Official booking website (PRIMARY)
 
-1. Restaurants, cafés, bars:
-   - MUST be validated via Google Maps.
-   - Collect:
-     - Name
-     - Category (restaurant, café, bar, etc.)
-     - Google Maps URL (PRIMARY URL)
-     - Official website URL (SECONDARY URL, if available)
+=========================================
+HARD CITY-MATCHING RULE
+=========================================
+Every location MUST be physically located in:
+- The same destination city
+- The same country
 
-2. Attractions, museums, landmarks, major sights:
-   - MUST be validated via the official website as PRIMARY.
-   - Collect:
-     - Name
-     - Category (museum, landmark, attraction, etc.)
-     - Official website URL (PRIMARY URL)
-     - Google Maps URL (SECONDARY URL, if helpful)
+If Google Maps returns ANY result outside the destination:
+- You MUST ignore it.
+- Search again with city/country included.
 
-3. Activities, tours, classes, cruises, workshops:
-   - MUST be validated via the official provider/booking website.
-   - Collect:
-     - Name
-     - Type (tour, cooking class, river cruise, etc.)
-     - Official booking/provider URL (PRIMARY URL)
-     - Google Maps URL (SECONDARY URL, if applicable)
+=========================================
+ADDRESS VERIFICATION RULE
+=========================================
+A place is VALID ONLY IF:
+- Its address exactly matches the destination city.
+- Its country matches the destination country.
+- It is currently operating (recent reviews within 24 months).
+- It is NOT a duplicate name in another country.
 
-4. You MUST NOT hallucinate or invent restaurant or activity names.
-   - Avoid generic filler names like “Champs Élysées Café”, “Le Bistro Montparnasse”, “The Flagship”, etc.
-   - If a place cannot be verified via search, you MUST NOT include it.
+If it fails ANY condition → DO NOT use.
 
-5. In the research output, for each recommended place, clearly list:
-   - Name
-   - Type (restaurant / café / museum / attraction / tour, etc.)
-   - Short description
-   - Primary URL
-   - Secondary URL (if applicable)
+=========================================
+NO GENERIC OR FABRICATED NAMES RULE
+=========================================
+You MUST immediately reject:
+- Artistic or poetic French mashups (e.g., “La Marmite des Artistes”)
+- Generic names like “Bistro Montparnasse,” “The Flagship”
+- Names not found on Google Maps or the official website
 
-Output: A structured, realistic research report (NO HTML).
+If unsure → DO NOT USE.
+
+=========================================
+RESEARCH OUTPUT STRUCTURE
+=========================================
+For each verified location include:
+- Name
+- Type (restaurant, museum, tour, etc.)
+- Description
+- PRIMARY URL (official or Google Maps)
+- SECONDARY URL (optional)
+
+NO HTML in this phase.
+
+Output: Fully verified research report.
 """,
             agent=researcher,
-            expected_output="Structured, realistic research report"
+            expected_output="Verified research report with no hallucinations"
         )
 
         # ============================================================
-        # TASK: REVIEW
+        # TASK: REVIEW (Accuracy Gatekeeper)
         # ============================================================
 
         review_task = Task(
             description="""
-Review the research findings for: {destination}
+Review the research for: {destination}
 
 You MUST:
-- Verify accuracy, completeness, and realism of all content.
-- Enforce ALL accommodation pricing rules.
-- Remove any inappropriate, unsafe, explicit, or harmful content.
-- Ensure NO hallucinated details or invented places.
-- Verify that EVERY recommended restaurant, café, bar, attraction, museum, and activity:
-  - Is a real, verifiable place.
-  - Has a valid PRIMARY URL as specified in the research rules.
-- Remove or replace any locations that:
-  - Cannot be validated.
-  - Have generic or obviously fabricated names.
-- Ensure budget ranges are realistic and formatted correctly.
-- Ensure the research remains text-only (NO HTML) and is well-structured.
+- Verify address, city, and country match EXACTLY.
+- Remove ANY locations outside the destination city.
+- Remove ANY result from another country.
+- Confirm the business exists AND is currently operating.
+- Ensure restaurants have real Google Maps listings.
+- Ensure attractions have official websites.
+- Ensure activities have real booking websites.
+- Remove ANY hallucinated or generic names.
+- Remove ANY ambiguous locations that Google Maps returns in multiple countries.
+- Replace invalid locations with verified alternatives.
 
-If any recommended place is missing a URL or cannot be verified:
-- Replace it with a verified alternative OR remove it.
+You MUST NOT allow:
+- Fake restaurants
+- Fake activities
+- French-sounding mashups
+- Wrong Google Maps listings
+- Outdated or closed businesses
 
-Output: Corrected, validated research ready for itinerary planning.
+Output: Fully validated, hallucination-free research.
 """,
             agent=reviewer,
-            expected_output="Validated research report"
+            expected_output="Clean, validated research"
         )
 
         # ============================================================
-        # TASK: PLANNING (HTML OUTPUT)
+        # TASK: PLANNING (HTML Output — Accuracy First)
         # ============================================================
 
         planning_task = Task(
             description="""
-Create a detailed {duration}-day itinerary for {destination}
-Budget: {budget}
-Travel Style: {travel_style}
-Special Requirements: {special_requirements}
-
-Use ONLY the verified, reviewed research. Do NOT introduce new, unverified locations.
+Create a detailed {duration}-day itinerary using ONLY fully verified research.
 
 =========================================
-ZORA DIGITAL BRAND COLOR PALETTE (REQUIRED)
+ZORA DIGITAL BRAND COLORS (REQUIRED)
 =========================================
-
-You MUST include the following <style> block inside the <head> of the HTML:
+Insert this EXACT <style> block inside <head>:
 
 <style>
-  body {
-    font-family: Arial, Helvetica, sans-serif;
-    color: #3D3D3D;
-  }
-  h1 {
-    color: #0F0F0F; /* Zora Charcoal */
-  }
-  h2 {
-    color: #1C1C1C; /* Zora Graphite */
-  }
-  p, li {
-    color: #3D3D3D; /* Zora Soft Noir */
-    line-height: 1.6;
-  }
-  a {
-    color: #2C7EF4; /* Zora Blue */
-    text-decoration: none;
-    font-weight: 600;
-  }
-  a:hover {
-    text-decoration: underline;
-  }
+  body { font-family: Arial, Helvetica, sans-serif; color: #3D3D3D; }
+  h1 { color: #0F0F0F; }
+  h2 { color: #1C1C1C; }
+  p, li { color: #3D3D3D; line-height: 1.6; }
+  a { color: #2C7EF4; text-decoration: none; font-weight: 600; }
+  a:hover { text-decoration: underline; }
 </style>
 
-You MUST NOT override these colors anywhere else.
+=========================================
+HYPERLINK RULES (NEW TAB REQUIRED)
+=========================================
+All hyperlinks MUST be formatted EXACTLY as:
+
+<a href="PRIMARY_URL" target="_blank" rel="noopener noreferrer">Name</a>
+
+PRIMARY URL RULES:
+- Restaurants → Google Maps link
+- Attractions → Official website
+- Activities → Provider/booking link
+
+DO NOT output plain text names.
 
 =========================================
-INAPPROPRIATE CONTENT FILTER
+STRICT NO-INVENTION RULE
 =========================================
-
-If the user requested anything inappropriate, illegal, harmful, explicit, or unsafe:
-- DO NOT include it in the itinerary.
-- Ignore it and proceed with a standard, appropriate itinerary only.
-
-=========================================
-SPECIAL REQUIREMENTS HANDLING
-=========================================
-
-- Only follow requirements explicitly provided.
-- If they are unclear, unsafe, or inappropriate, ignore them.
-- Do NOT change the palette, fonts, or HTML structure based on requirements.
+You MUST NOT:
+- Create new restaurant names
+- Invent activities
+- Fill gaps creatively
+- Add places not in the research
+- Modify names to sound “French”
+- Add ANY unverified location
 
 =========================================
-HYPERLINK OUTPUT RULES (OPTION A)
+HTML OUTPUT FORMAT — REQUIRED STRUCTURE
 =========================================
-
-In the FINAL HTML itinerary:
-
-- EVERY real-world location (restaurant, café, bar, hotel, attraction, museum, landmark, tour, activity, market, etc.) 
-  MUST be hyperlinked using:
-
-  <a href="PRIMARY_URL">Name</a>
-
-- Use exactly ONE hyperlink per place in the itinerary:
-  - Restaurants/cafés/bars → use the Google Maps URL (PRIMARY).
-  - Attractions/museums/landmarks → use the official website (PRIMARY).
-  - Activities/tours/classes/cruises → use the official provider/booking URL (PRIMARY).
-
-- Do NOT show secondary URLs in the HTML (they are for research/review only).
-- Do NOT output plain-text names for verified places. If the place is real, the name MUST be clickable.
-- If a place is missing a PRIMARY URL for any reason, you MUST:
-  - Search again and obtain a valid URL, OR
-  - Replace the place with a verified alternative that has a working URL.
-
-=========================================
-HTML OUTPUT FORMAT — REQUIRED
-=========================================
-
-You MUST output a complete HTML document with:
+You MUST output a complete HTML document with this EXACT structure:
 
 <html>
 <head>
-  [include the required <style> block here]
+  [Include the required <style> block here]
 </head>
 <body>
 
 <h1>{duration}-Day {travel_style}-Friendly Itinerary in {destination}</h1>
 
 <h2>Day 1: [Title]</h2>
-<p><strong>Morning:</strong> ...</p>
-<p><strong>Afternoon:</strong> ...</p>
-<p><strong>Evening:</strong> ...</p>
+<p><strong>Morning:</strong> [Activity with verified hyperlink if applicable]</p>
+<p><strong>Afternoon:</strong> [Activity with verified hyperlink if applicable]</p>
+<p><strong>Evening:</strong> [Activity with verified hyperlink if applicable]</p>
 <p><strong>Estimated Costs:</strong></p>
 <ul>
   <li>Transportation: $X</li>
@@ -336,9 +335,9 @@ You MUST output a complete HTML document with:
 [Repeat structure for all days]
 
 <h2>Day {duration}: Departure</h2>
-<p><strong>Morning:</strong> ...</p>
-<p><strong>Afternoon:</strong> ...</p>
-<p><strong>Evening:</strong> ...</p>
+<p><strong>Morning:</strong> [Departure summary]</p>
+<p><strong>Afternoon:</strong> [Any last activity or shopping]</p>
+<p><strong>Evening:</strong> [Transport to airport]</p>
 <p><strong>Estimated Costs:</strong></p>
 <ul>
   <li>Transportation: $X</li>
@@ -361,8 +360,7 @@ You MUST output a complete HTML document with:
 =========================================
 MANDATORY BUDGET RULES
 =========================================
-
-- Accommodation MUST use the verified nightly ranges and be expressed as a RANGE.
+- Accommodation MUST use verified nightly ranges and be expressed as a RANGE.
 - No unrealistic lowball pricing is allowed.
 - Total budget MUST reflect corrected accommodation values.
 - Ensure consistency between day-by-day costs and the final summary.
@@ -370,7 +368,7 @@ MANDATORY BUDGET RULES
 Output: A complete, styled HTML itinerary using Zora Digital colors and verified hyperlinks.
 """,
             agent=planner,
-            expected_output="Fully formatted HTML itinerary"
+            expected_output="Fully formatted HTML itinerary with verified links"
         )
 
         # ============================================================
@@ -380,8 +378,11 @@ Output: A complete, styled HTML itinerary using Zora Digital colors and verified
         crew = Crew(
             agents=[researcher, reviewer, planner],
             tasks=[research_task, review_task, planning_task],
-            process="sequential",
-            verbose=True,
+            process="sequential",  # Sequential ensures accuracy - each step completes fully before next
+            verbose=True,  # Verbose logging helps track accuracy and catch issues
+            # Note: We do NOT set any speed-optimizing parameters
+            # We do NOT reduce context length, temperature, reasoning steps, or use lighter modes
+            # Accuracy is prioritized over speed in all configurations
         )
 
         return crew

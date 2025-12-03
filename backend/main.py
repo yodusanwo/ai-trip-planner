@@ -501,8 +501,10 @@ def run_crew_sync(trip_id: str, crew_inputs: Dict[str, Any], result_container: D
         tasks_completed = []
         
         # Run crew with streaming if available, otherwise use regular execution
+        # NOTE: Streaming is ONLY for progress updates (UX). It does NOT affect accuracy or speed up execution.
+        # The crew still runs fully with all accuracy checks. We prioritize accuracy over speed.
         try:
-            # Try streaming first
+            # Try streaming first (for progress tracking only - does not affect accuracy)
             stream_result = crew.kickoff(inputs=crew_inputs, stream=True)
             
             current_task_idx = 0
