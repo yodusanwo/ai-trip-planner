@@ -1,169 +1,189 @@
-'use client'
+"use client";
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from "react";
 
 export interface TripDetails {
-  destination: string
-  duration: number
-  budget: string
-  travelStyle: string[]
-  specialRequirements?: string
+  destination: string;
+  duration: number;
+  budget: string;
+  travelStyle: string[];
+  specialRequirements?: string;
 }
 
 interface TripFormProps {
-  clientId: string | null
-  onTripCreated: (tripId: string, clientId: string, tripDetails: TripDetails) => void
+  clientId: string | null;
+  onTripCreated: (
+    tripId: string,
+    clientId: string,
+    tripDetails: TripDetails
+  ) => void;
 }
 
 interface SpellCheckResult {
-  has_errors: boolean
-  misspelled_words: string[]
-  suggestions: { [word: string]: string[] }
-  original_text: string
-  error?: string
+  has_errors: boolean;
+  misspelled_words: string[];
+  suggestions: { [word: string]: string[] };
+  original_text: string;
+  error?: string;
 }
 
 export default function TripForm({ clientId, onTripCreated }: TripFormProps) {
-  const [destination, setDestination] = useState('')
-  const [duration, setDuration] = useState(7)
-  const [budget, setBudget] = useState('moderate')
-  const [travelStyle, setTravelStyle] = useState<string[]>([])
-  const [specialRequirements, setSpecialRequirements] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [destinationSpellCheck, setDestinationSpellCheck] = useState<SpellCheckResult | null>(null)
-  const [requirementsSpellCheck, setRequirementsSpellCheck] = useState<SpellCheckResult | null>(null)
-  const [checkingSpell, setCheckingSpell] = useState(false)
+  const [destination, setDestination] = useState("");
+  const [duration, setDuration] = useState(7);
+  const [budget, setBudget] = useState("moderate");
+  const [travelStyle, setTravelStyle] = useState<string[]>([]);
+  const [specialRequirements, setSpecialRequirements] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [destinationSpellCheck, setDestinationSpellCheck] =
+    useState<SpellCheckResult | null>(null);
+  const [requirementsSpellCheck, setRequirementsSpellCheck] =
+    useState<SpellCheckResult | null>(null);
+  const [checkingSpell, setCheckingSpell] = useState(false);
 
   const travelStyleOptions = [
-    'Adventure',
-    'Relaxation',
-    'Cultural',
-    'Food & Dining',
-    'Nature & Outdoors',
-    'Nightlife',
-    'Family-Friendly',
-  ]
+    "Adventure",
+    "Relaxation",
+    "Cultural",
+    "Food & Dining",
+    "Nature & Outdoors",
+    "Nightlife",
+    "Family-Friendly",
+  ];
 
   const toggleTravelStyle = (style: string) => {
-    setTravelStyle(prev => {
+    setTravelStyle((prev) => {
       if (prev.includes(style)) {
-        return prev.filter(s => s !== style)
+        return prev.filter((s) => s !== style);
       } else if (prev.length < 5) {
-        return [...prev, style]
+        return [...prev, style];
       }
-      return prev
-    })
-  }
+      return prev;
+    });
+  };
 
   // Debounced spell check function
-  const spellCheckText = useCallback(async (text: string, type: 'destination' | 'requirements') => {
-    if (!text.trim() || text.trim().length < 3) {
-      if (type === 'destination') {
-        setDestinationSpellCheck(null)
-      } else {
-        setRequirementsSpellCheck(null)
-      }
-      return
-    }
-
-    setCheckingSpell(true)
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-      console.log(`[Spell Check] Checking ${type}: "${text}"`)
-      
-      const response = await fetch(`${apiUrl}/api/spell-check`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ text }),
-      })
-
-      if (response.ok) {
-        const result: SpellCheckResult = await response.json()
-        console.log(`[Spell Check] Result for ${type}:`, result)
-        
-        if (type === 'destination') {
-          setDestinationSpellCheck(result)
+  const spellCheckText = useCallback(
+    async (text: string, type: "destination" | "requirements") => {
+      if (!text.trim() || text.trim().length < 3) {
+        if (type === "destination") {
+          setDestinationSpellCheck(null);
         } else {
-          setRequirementsSpellCheck(result)
+          setRequirementsSpellCheck(null);
         }
-      } else {
-        const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }))
-        console.error(`[Spell Check] API error for ${type}:`, errorData)
+        return;
       }
-    } catch (err) {
-      console.error(`[Spell Check] Error checking ${type}:`, err)
-    } finally {
-      setCheckingSpell(false)
-    }
-  }, [])
+
+      setCheckingSpell(true);
+      try {
+        const apiUrl =
+          process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        console.log(`[Spell Check] Checking ${type}: "${text}"`);
+
+        const response = await fetch(`${apiUrl}/api/spell-check`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ text }),
+        });
+
+        if (response.ok) {
+          const result: SpellCheckResult = await response.json();
+          console.log(`[Spell Check] Result for ${type}:`, result);
+
+          if (type === "destination") {
+            setDestinationSpellCheck(result);
+          } else {
+            setRequirementsSpellCheck(result);
+          }
+        } else {
+          const errorData = await response
+            .json()
+            .catch(() => ({ detail: "Unknown error" }));
+          console.error(`[Spell Check] API error for ${type}:`, errorData);
+        }
+      } catch (err) {
+        console.error(`[Spell Check] Error checking ${type}:`, err);
+      } finally {
+        setCheckingSpell(false);
+      }
+    },
+    []
+  );
 
   // Debounce spell check for destination
   useEffect(() => {
     const timer = setTimeout(() => {
       if (destination.trim() && destination.trim().length >= 3) {
-        spellCheckText(destination, 'destination')
+        spellCheckText(destination, "destination");
       } else {
-        setDestinationSpellCheck(null)
+        setDestinationSpellCheck(null);
       }
-    }, 500) // Wait 500ms after user stops typing
+    }, 500); // Wait 500ms after user stops typing
 
-    return () => clearTimeout(timer)
-  }, [destination, spellCheckText])
+    return () => clearTimeout(timer);
+  }, [destination, spellCheckText]);
 
   // Debounce spell check for special requirements
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (specialRequirements.trim() && specialRequirements.trim().length >= 3) {
-        spellCheckText(specialRequirements, 'requirements')
+      if (
+        specialRequirements.trim() &&
+        specialRequirements.trim().length >= 3
+      ) {
+        spellCheckText(specialRequirements, "requirements");
       } else {
-        setRequirementsSpellCheck(null)
+        setRequirementsSpellCheck(null);
       }
-    }, 500) // Wait 500ms after user stops typing
+    }, 500); // Wait 500ms after user stops typing
 
-    return () => clearTimeout(timer)
-  }, [specialRequirements, spellCheckText])
+    return () => clearTimeout(timer);
+  }, [specialRequirements, spellCheckText]);
 
   // Apply spell check suggestion
-  const applySuggestion = (originalWord: string, suggestion: string, type: 'destination' | 'requirements') => {
-    const currentText = type === 'destination' ? destination : specialRequirements
-    const regex = new RegExp(`\\b${originalWord}\\b`, 'gi')
-    const newText = currentText.replace(regex, suggestion)
-    
-    if (type === 'destination') {
-      setDestination(newText)
-      setDestinationSpellCheck(null)
+  const applySuggestion = (
+    originalWord: string,
+    suggestion: string,
+    type: "destination" | "requirements"
+  ) => {
+    const currentText =
+      type === "destination" ? destination : specialRequirements;
+    const regex = new RegExp(`\\b${originalWord}\\b`, "gi");
+    const newText = currentText.replace(regex, suggestion);
+
+    if (type === "destination") {
+      setDestination(newText);
+      setDestinationSpellCheck(null);
     } else {
-      setSpecialRequirements(newText)
-      setRequirementsSpellCheck(null)
+      setSpecialRequirements(newText);
+      setRequirementsSpellCheck(null);
     }
-  }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
-    setLoading(true)
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
 
     if (!destination.trim()) {
-      setError('Please enter a destination')
-      setLoading(false)
-      return
+      setError("Please enter a destination");
+      setLoading(false);
+      return;
     }
 
     if (travelStyle.length === 0) {
-      setError('Please select at least one travel style')
-      setLoading(false)
-      return
+      setError("Please select at least one travel style");
+      setLoading(false);
+      return;
     }
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
       const response = await fetch(`${apiUrl}/api/trips`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           destination: destination.trim(),
@@ -173,15 +193,15 @@ export default function TripForm({ clientId, onTripCreated }: TripFormProps) {
           special_requirements: specialRequirements.trim() || undefined,
           client_id: clientId,
         }),
-      })
+      });
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.detail || 'Failed to create trip')
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to create trip");
       }
 
-      const data = await response.json()
-      
+      const data = await response.json();
+
       // Pass trip details along with trip ID
       const tripDetails: TripDetails = {
         destination: destination.trim(),
@@ -189,28 +209,31 @@ export default function TripForm({ clientId, onTripCreated }: TripFormProps) {
         budget,
         travelStyle,
         specialRequirements: specialRequirements.trim() || undefined,
-      }
-      
-      onTripCreated(data.trip_id, data.client_id, tripDetails)
-      
+      };
+
+      onTripCreated(data.trip_id, data.client_id, tripDetails);
+
       // Reset form
-      setDestination('')
-      setDuration(7)
-      setBudget('moderate')
-      setTravelStyle([])
-      setSpecialRequirements('')
+      setDestination("");
+      setDuration(7);
+      setBudget("moderate");
+      setTravelStyle([]);
+      setSpecialRequirements("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred')
+      setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Destination */}
       <div>
-        <label htmlFor="destination" className="block text-sm font-medium text-gray-700 mb-2">
+        <label
+          htmlFor="destination"
+          className="block text-sm font-medium text-gray-700 mb-2"
+        >
           Destination *
         </label>
         <input
@@ -221,15 +244,15 @@ export default function TripForm({ clientId, onTripCreated }: TripFormProps) {
           placeholder="e.g., Tokyo, Japan"
           spellCheck="true"
           className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
-            destinationSpellCheck?.has_errors ? 'border-yellow-400' : 'border-gray-300'
+            destinationSpellCheck?.has_errors
+              ? "border-yellow-400"
+              : "border-gray-300"
           }`}
           required
           maxLength={100}
         />
         {checkingSpell && destination.trim().length >= 3 && (
-          <div className="mt-2 text-xs text-gray-500">
-            Checking spelling...
-          </div>
+          <div className="mt-2 text-xs text-gray-500">Checking spelling...</div>
         )}
         {destinationSpellCheck?.error && (
           <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg">
@@ -249,14 +272,18 @@ export default function TripForm({ clientId, onTripCreated }: TripFormProps) {
             <div className="space-y-1">
               {destinationSpellCheck.misspelled_words.map((word) => {
                 // Try to find suggestions with case-insensitive matching
-                const suggestionKey = Object.keys(destinationSpellCheck.suggestions).find(
-                  key => key.toLowerCase() === word.toLowerCase()
-                ) || word
-                const suggestions = destinationSpellCheck.suggestions[suggestionKey] || []
-                
+                const suggestionKey =
+                  Object.keys(destinationSpellCheck.suggestions).find(
+                    (key) => key.toLowerCase() === word.toLowerCase()
+                  ) || word;
+                const suggestions =
+                  destinationSpellCheck.suggestions[suggestionKey] || [];
+
                 return (
                   <div key={word} className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm text-yellow-800 font-medium">"{word}"</span>
+                    <span className="text-sm text-yellow-800 font-medium">
+                      "{word}"
+                    </span>
                     {suggestions.length > 0 && (
                       <>
                         <span className="text-xs text-yellow-600">→</span>
@@ -264,7 +291,9 @@ export default function TripForm({ clientId, onTripCreated }: TripFormProps) {
                           <button
                             key={suggestion}
                             type="button"
-                            onClick={() => applySuggestion(word, suggestion, 'destination')}
+                            onClick={() =>
+                              applySuggestion(word, suggestion, "destination")
+                            }
                             className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200 transition-colors"
                           >
                             {suggestion}
@@ -273,7 +302,7 @@ export default function TripForm({ clientId, onTripCreated }: TripFormProps) {
                       </>
                     )}
                   </div>
-                )
+                );
               })}
             </div>
           </div>
@@ -282,8 +311,11 @@ export default function TripForm({ clientId, onTripCreated }: TripFormProps) {
 
       {/* Duration */}
       <div>
-        <label htmlFor="duration" className="block text-sm font-medium text-gray-700 mb-2">
-          Duration: {duration} {duration === 1 ? 'day' : 'days'}
+        <label
+          htmlFor="duration"
+          className="block text-sm font-medium text-gray-700 mb-2"
+        >
+          Duration: {duration} {duration === 1 ? "day" : "days"}
         </label>
         <input
           type="range"
@@ -302,7 +334,10 @@ export default function TripForm({ clientId, onTripCreated }: TripFormProps) {
 
       {/* Budget */}
       <div>
-        <label htmlFor="budget" className="block text-sm font-medium text-gray-700 mb-2">
+        <label
+          htmlFor="budget"
+          className="block text-sm font-medium text-gray-700 mb-2"
+        >
           Budget
         </label>
         <select
@@ -331,8 +366,8 @@ export default function TripForm({ clientId, onTripCreated }: TripFormProps) {
               disabled={!travelStyle.includes(style) && travelStyle.length >= 5}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 travelStyle.includes(style)
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed'
+                  ? "bg-primary-600 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
               }`}
             >
               {style}
@@ -341,14 +376,17 @@ export default function TripForm({ clientId, onTripCreated }: TripFormProps) {
         </div>
         {travelStyle.length > 0 && (
           <p className="text-xs text-gray-500 mt-2">
-            Selected: {travelStyle.join(', ')}
+            Selected: {travelStyle.join(", ")}
           </p>
         )}
       </div>
 
       {/* Special Requirements */}
       <div>
-        <label htmlFor="specialRequirements" className="block text-sm font-medium text-gray-700 mb-2">
+        <label
+          htmlFor="specialRequirements"
+          className="block text-sm font-medium text-gray-700 mb-2"
+        >
           Special Requirements (optional)
         </label>
         <textarea
@@ -359,7 +397,9 @@ export default function TripForm({ clientId, onTripCreated }: TripFormProps) {
           rows={3}
           spellCheck="true"
           className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
-            requirementsSpellCheck?.has_errors ? 'border-yellow-400' : 'border-gray-300'
+            requirementsSpellCheck?.has_errors
+              ? "border-yellow-400"
+              : "border-gray-300"
           }`}
           maxLength={500}
         />
@@ -367,9 +407,7 @@ export default function TripForm({ clientId, onTripCreated }: TripFormProps) {
           {specialRequirements.length}/500 characters
         </p>
         {checkingSpell && specialRequirements.trim().length >= 3 && (
-          <div className="mt-2 text-xs text-gray-500">
-            Checking spelling...
-          </div>
+          <div className="mt-2 text-xs text-gray-500">Checking spelling...</div>
         )}
         {requirementsSpellCheck?.error && (
           <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg">
@@ -378,43 +416,57 @@ export default function TripForm({ clientId, onTripCreated }: TripFormProps) {
             </p>
           </div>
         )}
-        {requirementsSpellCheck?.has_errors && !requirementsSpellCheck?.error && (
-          <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <p className="text-sm font-medium text-yellow-800 mb-2">
-              ⚠️ Possible spelling issues detected:
-            </p>
-            <div className="space-y-1">
-              {requirementsSpellCheck.misspelled_words.map((word) => {
-                // Try to find suggestions with case-insensitive matching
-                const suggestionKey = Object.keys(requirementsSpellCheck.suggestions).find(
-                  key => key.toLowerCase() === word.toLowerCase()
-                ) || word
-                const suggestions = requirementsSpellCheck.suggestions[suggestionKey] || []
-                
-                return (
-                  <div key={word} className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm text-yellow-800 font-medium">"{word}"</span>
-                    {suggestions.length > 0 && (
-                      <>
-                        <span className="text-xs text-yellow-600">→</span>
-                        {suggestions.map((suggestion) => (
-                          <button
-                            key={suggestion}
-                            type="button"
-                            onClick={() => applySuggestion(word, suggestion, 'requirements')}
-                            className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200 transition-colors"
-                          >
-                            {suggestion}
-                          </button>
-                        ))}
-                      </>
-                    )}
-                  </div>
-                )
-              })}
+        {requirementsSpellCheck?.has_errors &&
+          !requirementsSpellCheck?.error && (
+            <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm font-medium text-yellow-800 mb-2">
+                ⚠️ Possible spelling issues detected:
+              </p>
+              <div className="space-y-1">
+                {requirementsSpellCheck.misspelled_words.map((word) => {
+                  // Try to find suggestions with case-insensitive matching
+                  const suggestionKey =
+                    Object.keys(requirementsSpellCheck.suggestions).find(
+                      (key) => key.toLowerCase() === word.toLowerCase()
+                    ) || word;
+                  const suggestions =
+                    requirementsSpellCheck.suggestions[suggestionKey] || [];
+
+                  return (
+                    <div
+                      key={word}
+                      className="flex items-center gap-2 flex-wrap"
+                    >
+                      <span className="text-sm text-yellow-800 font-medium">
+                        "{word}"
+                      </span>
+                      {suggestions.length > 0 && (
+                        <>
+                          <span className="text-xs text-yellow-600">→</span>
+                          {suggestions.map((suggestion) => (
+                            <button
+                              key={suggestion}
+                              type="button"
+                              onClick={() =>
+                                applySuggestion(
+                                  word,
+                                  suggestion,
+                                  "requirements"
+                                )
+                              }
+                              className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200 transition-colors"
+                            >
+                              {suggestion}
+                            </button>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          )}
       </div>
 
       {/* Error Message */}
@@ -430,9 +482,8 @@ export default function TripForm({ clientId, onTripCreated }: TripFormProps) {
         disabled={loading || !clientId}
         className="w-full bg-primary-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
-        {loading ? 'Creating Trip Plan...' : 'Plan My Trip ✈️'}
+        {loading ? "Creating Trip Plan..." : "Plan My Trip ✈️"}
       </button>
     </form>
-  )
+  );
 }
-
