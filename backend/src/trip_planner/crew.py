@@ -26,33 +26,36 @@ class TripPlanner:
         
         # Create agents
         researcher = Agent(
-            role="Trip Researcher",
-            goal="Research destinations, local costs, attractions, and travel information",
-            backstory="""You are an expert travel researcher with extensive knowledge of 
-            destinations worldwide. You gather comprehensive information about locations, 
-            including costs, attractions, local customs, and practical travel details.""",
+            role="Expert Travel Researcher",
+            goal="Deliver detailed and up-to-date travel research for global destinations,"
+                "covering budget estimates, key attractions, logistics, local culture, and practical tips.",
+            backstory="""You are a world-class travel researcher with deep knowledge of international destinations.
+                Your insights help travelers make informed decisions. You specialize in curating accurate,
+                current, and comprehensive data from trusted sources. Your output is structured, reliable, and ready for review.""",
             tools=[search_tool],
             verbose=True,
             allow_delegation=False,
         )
         
         reviewer = Agent(
-            role="Trip Reviewer",
-            goal="Review and refine research findings, ensuring accuracy and completeness",
-            backstory="""You are a meticulous travel reviewer who ensures all research 
-            is accurate, complete, and well-organized. You review findings and prepare 
-            them for the planning phase.""",
+            role="Meticulous Travel Reviewer",
+            goal="Ensure the research findings are accurate, complete, logically structured,"
+                "and formatted for easy consumption by the trip planner.",
+            backstory="""You are a detail-oriented travel expert with a critical eye. Your role is to verify the accuracy,
+                completeness, and usability of the researcher's findings. You cross-check facts, fix inconsistencies, 
+                and optimize the structure of the report for clear planning handoff.""",
             tools=[search_tool],
             verbose=True,
             allow_delegation=False,
         )
         
         planner = Agent(
-            role="Trip Planner",
-            goal="Create a comprehensive, detailed trip itinerary based on research",
-            backstory="""You are an expert travel planner who creates detailed, 
-            day-by-day itineraries. You combine research findings with user preferences 
-            to create personalized travel plans that are practical and enjoyable.""",
+            role="Creative and Practical Trip Planner",
+            goal="Craft personalized, engaging, and highly detailed trip itineraries based on verified travel research "
+                "and the traveler's preferences.",
+            backstory="""You are an expert itinerary designer who transforms research into engaging, day-by-day travel plans.
+                You integrate user preferences, logistical realities, and creative flair to produce well-balanced, 
+                budget-aware, and delightful travel experiences.""",
             tools=[search_tool],
             verbose=True,
             allow_delegation=False,
@@ -67,24 +70,27 @@ class TripPlanner:
             Special Requirements: {special_requirements}
             
             Gather comprehensive information about:
-            - Local costs (accommodation, food, transportation)
+            - Estimated daily and total costs (accommodation, food, transportation)
             - Top attractions and activities
-            - Best areas to stay
-            - Transportation options
-            - Local customs and tips
+            - Best areas to neighborhoods to stay in
+            - Local Transportation options
+            - Cultural customs and tips
+            Safety, visas, and seasonal info
             - Budget breakdown
-            
+            **Output:** A well-organized, bullet-pointed research report with budget breakdowns and source links
             Provide detailed research findings including a budget overview.""",
             agent=researcher,
-            expected_output="Comprehensive research report with destination information and budget overview"
+            expected_output="Structured research report with all requested data and budget summary."
         )
         
         review_task = Task(
             description="""Review and refine the research findings for: {destination}
-            Ensure all information is accurate, complete, and well-organized.
-            Verify budget estimates and highlight key attractions.""",
+            Confirm completeness of all sections.
+            Verify accuracy and remove outdated or misleading info.
+            Ensure that report is logically organized and easy to read.
+            Highlight standout attractions and clarify budget sections.""",
             agent=reviewer,
-            expected_output="Reviewed and refined research report"
+            expected_output="Validated and improved research report, optimized for planning handoff."
         )
         
         planning_task = Task(
@@ -95,14 +101,12 @@ class TripPlanner:
             
             Based on the research findings, create a comprehensive day-by-day itinerary 
             that includes:
-            - Daily schedule with activities
-            - Recommended accommodations
-            - Restaurant suggestions
-            - Transportation details
-            - Budget breakdown
-            - Tips and recommendations
-            
-            Format the output as a well-structured HTML document.""",
+            - Daily activity plan (morning, afternoon, evening)
+            - Recommended accommodations and restaurants
+            - Transportation details (local travel, airport transfers, etc.)
+            - Estimated daily costs and total budget summary
+            - Practical tips and cultural insights
+            **Output:** A visually structured HTML document containing the full itinerary.""",
             agent=planner,
             expected_output="Complete HTML-formatted trip itinerary"
         )
