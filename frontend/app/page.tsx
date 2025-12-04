@@ -70,13 +70,14 @@ export default function Home() {
         {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           {/* Trip Form */}
-          <div className="bg-white rounded-lg shadow-lg p-6">
+          <div className={`bg-white rounded-lg shadow-lg p-6 ${tripId ? 'opacity-50 pointer-events-none' : ''}`}>
             <h2 className="text-2xl font-semibold mb-4 text-gray-800">
               Plan Your Trip
             </h2>
             <TripForm 
               clientId={clientId} 
               onTripCreated={handleTripCreated}
+              disabled={!!tripId}
             />
           </div>
 

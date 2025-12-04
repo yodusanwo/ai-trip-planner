@@ -17,6 +17,7 @@ interface TripFormProps {
     clientId: string,
     tripDetails: TripDetails
   ) => void;
+  disabled?: boolean;
 }
 
 interface SpellCheckResult {
@@ -27,7 +28,11 @@ interface SpellCheckResult {
   error?: string;
 }
 
-export default function TripForm({ clientId, onTripCreated }: TripFormProps) {
+export default function TripForm({
+  clientId,
+  onTripCreated,
+  disabled = false,
+}: TripFormProps) {
   const [destination, setDestination] = useState("");
   const [duration, setDuration] = useState(7);
   const [budget, setBudget] = useState("moderate");
@@ -227,7 +232,10 @@ export default function TripForm({ clientId, onTripCreated }: TripFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form
+      onSubmit={handleSubmit}
+      className={`space-y-6 ${disabled ? "opacity-50" : ""}`}
+    >
       {/* Destination */}
       <div>
         <label
@@ -243,11 +251,12 @@ export default function TripForm({ clientId, onTripCreated }: TripFormProps) {
           onChange={(e) => setDestination(e.target.value)}
           placeholder="e.g., Tokyo, Japan"
           spellCheck="true"
+          disabled={disabled}
           className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
             destinationSpellCheck?.has_errors
               ? "border-yellow-400"
               : "border-gray-300"
-          }`}
+          } ${disabled ? "bg-gray-100 cursor-not-allowed" : ""}`}
           required
           maxLength={100}
         />
@@ -324,7 +333,10 @@ export default function TripForm({ clientId, onTripCreated }: TripFormProps) {
           max="30"
           value={duration}
           onChange={(e) => setDuration(parseInt(e.target.value))}
-          className="w-full"
+          disabled={disabled}
+          className={`w-full ${
+            disabled ? "opacity-50 cursor-not-allowed" : ""
+          }`}
         />
         <div className="flex justify-between text-xs text-gray-500 mt-1">
           <span>1 day</span>
@@ -344,7 +356,10 @@ export default function TripForm({ clientId, onTripCreated }: TripFormProps) {
           id="budget"
           value={budget}
           onChange={(e) => setBudget(e.target.value)}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+          disabled={disabled}
+          className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+            disabled ? "bg-gray-100 cursor-not-allowed" : ""
+          }`}
         >
           <option value="budget">Budget-Friendly</option>
           <option value="moderate">Moderate</option>
@@ -363,7 +378,10 @@ export default function TripForm({ clientId, onTripCreated }: TripFormProps) {
               key={style}
               type="button"
               onClick={() => toggleTravelStyle(style)}
-              disabled={!travelStyle.includes(style) && travelStyle.length >= 5}
+              disabled={
+                disabled ||
+                (!travelStyle.includes(style) && travelStyle.length >= 5)
+              }
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 travelStyle.includes(style)
                   ? "bg-primary-600 text-white"
@@ -396,11 +414,12 @@ export default function TripForm({ clientId, onTripCreated }: TripFormProps) {
           placeholder="e.g., Wheelchair accessible, Vegetarian restaurants, etc."
           rows={3}
           spellCheck="true"
+          disabled={disabled}
           className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
             requirementsSpellCheck?.has_errors
               ? "border-yellow-400"
               : "border-gray-300"
-          }`}
+          } ${disabled ? "bg-gray-100 cursor-not-allowed" : ""}`}
           maxLength={500}
         />
         <p className="text-xs text-gray-500 mt-1">
@@ -479,7 +498,7 @@ export default function TripForm({ clientId, onTripCreated }: TripFormProps) {
       {/* Submit Button */}
       <button
         type="submit"
-        disabled={loading || !clientId}
+        disabled={disabled || loading || !clientId}
         className="w-full bg-primary-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
         {loading ? "Creating Trip Plan..." : "Plan My Trip ✈️"}
