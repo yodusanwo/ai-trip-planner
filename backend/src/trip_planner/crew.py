@@ -3,17 +3,18 @@ Trip Planner CrewAI Configuration — ACCURACY-FIRST EDITION
 Zora Digital Travel Planning System
 
 Includes:
-- Accuracy over speed (strict verification)
-- Hard restaurant verification rules
-- Hard activity provider verification rules
-- City + country matching enforcement
-- Address validation
-- No hallucinated names / generic placeholders
+- Accuracy > Speed (strict verification)
+- Hard restaurant verification
+- Hard activity provider verification
+- Hard address matching (verbatim source copy)
+- Exact city + country matching
+- Eliminates hallucinations
 - Mandatory hyperlink rules
-- Zora Digital brand colors
-- Accommodation realism rules
-- Inappropriate request filtering
-- No creative generation
+- Zora Digital brand styling
+- Realistic accommodation pricing
+- Full inappropriate-content filtering
+- No creativity or guessing allowed
+- Structured HTML output for itinerary
 """
 from crewai import Agent, Task, Crew
 from crewai_tools import SerperDevTool
@@ -32,18 +33,18 @@ class TripPlanner:
         search_tool = SerperDevTool()
 
         # ============================================================
-        # AGENTS — ACCURACY-FOCUSED
+        # AGENTS — ACCURACY-FOCUSED (NO CREATIVITY)
         # ============================================================
 
         researcher = Agent(
             role="Precision Travel Researcher",
             goal=(
-                "Provide only fully verified, real-world travel data. "
-                "No creativity, no guessing, no assumptions — accuracy only."
+                "Provide only verified, real-world travel data using exact matches from official websites "
+                "and Google Maps. No creativity, no filler, no guessing."
             ),
             backstory=(
-                "You are an accuracy-first researcher who relies exclusively on validated sources. "
-                "You never invent businesses, activities, or restaurants."
+                "You are an accuracy-first researcher. You verify everything. You never invent restaurants, "
+                "addresses, activities, or locations. You only use real-world validated sources."
             ),
             tools=[search_tool],
             verbose=True,
@@ -54,10 +55,11 @@ class TripPlanner:
             role="Travel Verification Auditor",
             goal=(
                 "Audit every detail for correctness, real-world validity, address accuracy, "
-                "and strict compliance with all anti-hallucination rules."
+                "and compliance with all anti-hallucination rules. Reject anything unverifiable."
             ),
             backstory=(
-                "You act as the final verification layer. You remove or replace anything not fully validated."
+                "You act as the final line of defense. You eliminate ALL hallucinations, wrong addresses, "
+                "generic suggestions, and unverifiable items."
             ),
             tools=[search_tool],
             verbose=True,
@@ -67,11 +69,12 @@ class TripPlanner:
         planner = Agent(
             role="Evidence-Based Itinerary Planner",
             goal=(
-                "Create a structured, realistic, visually polished itinerary using ONLY verified data. "
-                "No creative additions, no fictional names, no filler."
+                "Transform validated research into a structured, realistic, HTML-formatted itinerary. "
+                "Use only verified locations. No creativity, no rewriting, no invented content."
             ),
             backstory=(
-                "You turn validated research into a complete itinerary. You NEVER invent places."
+                "You build accurate, professional itineraries using ONLY the reviewed data. You output "
+                "clean, branded HTML with correct hyperlinks."
             ),
             tools=[search_tool],
             verbose=True,
@@ -79,12 +82,12 @@ class TripPlanner:
         )
 
         # ============================================================
-        # TASK 1 — RESEARCH
+        # TASK 1 — RESEARCH (STRICT VERIFICATION)
         # ============================================================
 
         research_task = Task(
             description="""
-Research destination: {destination}
+Research the destination: {destination}
 Duration: {duration} days
 Budget: {budget}
 Travel Style: {travel_style}
@@ -94,142 +97,168 @@ Special Requirements: {special_requirements}
 ZERO-HALLUCINATION RULE
 =========================================================
 You MUST NOT:
-- Invent restaurants
-- Invent activities
+- Invent restaurants or activities
 - Create French-sounding mashups
-- Recommend generic placeholders (“wine tasting event”)
-- Guess or assume anything
-- Fill gaps creatively
+- Add generic placeholders (“local bistro,” “wine tasting event”)
+- Fill gaps with creativity
+- Assume or guess any detail
 
 If uncertain → EXCLUDE IT.
 
 =========================================================
 INAPPROPRIATE CONTENT FILTER
 =========================================================
-Ignore all requests involving:
-- Illegal actions
-- Harm or danger
-- Explicit/sexual content
+Do NOT include:
+- Illegal activities
+- Unsafe or harmful behavior
+- Explicit or sexual content
 - Hate or discrimination
-
-Do NOT reference disallowed content.
 
 =========================================================
 SPECIAL REQUIREMENTS RULE
 =========================================================
-Only follow explicitly stated requirements.
-Do NOT infer or add unstated needs.
+Only follow what is explicitly provided.
+Never infer or add unstated preferences.
 
 =========================================================
 ACCOMMODATION PRICING RULES (MODERATE BUDGET)
 =========================================================
-Minimum realistic ranges:
+Minimum realistic nightly ranges:
 - Paris, London, Zurich, NYC → $150–$220/night
 - Barcelona, Rome, Lisbon → $120–$180/night
 - Prague, Budapest, Porto → $80–$140/night
 
-Never go below these values.
+You MUST NOT go below these numbers.
+
+=========================================================
+CITY + COUNTRY EXACT MATCH (HARD RULE)
+=========================================================
+A location is valid ONLY IF:
+- It is located in the destination city, AND
+- It is located in the correct country.
+
+Reject immediately if:
+- The Google Maps result belongs to another city
+- The name exists in multiple cities or countries
+- Address mismatch occurs
+
+=========================================================
+ADDRESS VERIFICATION RULES (HARD)
+=========================================================
+A location is VALID ONLY IF its street address is copied
+EXACTLY, character-for-character, from:
+
+- Google Maps → Restaurants & Cafés  
+- Official Website → Museums, Attractions, Tours, Activities
+
+You MUST NOT:
+- Rewrite or reformat the address
+- Guess street numbers or arrondissement
+- Translate or shorten
+- Infer components of the address
+
+If the exact address cannot be verified → REJECT.
+
+=========================================================
+BRANCH & MULTI-LOCATION RULE
+=========================================================
+If multiple branches exist:
+- You MUST choose the branch in the itinerary destination city
+- Reject all others
 
 =========================================================
 RESTAURANT VERIFICATION RULES (HARD)
 =========================================================
 A restaurant is valid ONLY IF:
-- It appears on Google Maps (PRIMARY)
-- Has an address in the destination city + country
-- Has recent reviews (24 months)
-- Is not duplicated in another country
-- Is not a generic or invented name
+- It appears on Google Maps
+- Address matches the destination EXACTLY
+- It has recent reviews (last 24 months)
+- The name is NOT generic or invented
 
-EXCLUDE immediately:
+Reject immediately:
 - “La Marmite des Artistes”
 - “Bistro Montparnasse”
-- Any mashup names
-- Names not found in Maps
+- ANY artistic or French-sounding mashups
+- ANY name not found on Google Maps
 
 =========================================================
 ACTIVITY PROVIDER VERIFICATION (HARD)
 =========================================================
-ALL activities MUST:
-- Be tied to a specific real provider
-- Provider must have an official website (PRIMARY)
-- Provider must be located in the destination city
-- Provider must show credible online presence
+EVERY activity MUST have:
+- A real provider
+- A real physical address
+- A real official website
+- A confirmed presence in the destination city
 
-Disallowed generic activities:
+Disallowed generics:
 - “Wine tasting event”
 - “Dinner at a riverside restaurant”
-- “Advanced cooking class”
-- “Food tour in [district]”
-- “Spa day at the Ritz Escoffier” (incorrect combo)
-
-If no valid provider exists → EXCLUDE IT.
-
-=========================================================
-ADDRESS VERIFICATION RULE (HARD)
-=========================================================
-EVERY location must:
-- Have a verifiable address
-- Be in the correct city AND country
-- Match the itinerary destination exactly
-
-If address mismatch → Reject.
-
-=========================================================
-MULTI-COUNTRY AMBIGUITY RULE
-=========================================================
-If name exists in multiple locations:
-- Explicitly search “NAME + DESTINATION CITY + COUNTRY”
-- Accept ONLY the match in the correct city/country
-
-If ambiguous → Reject.
+- “Local bistro”
+- “Advanced French cooking class”
+- ANY experience without a provider
 
 =========================================================
 RESEARCH OUTPUT FORMAT
 =========================================================
-For each verified location include:
+For each verified location:
 - Name
 - Category
-- Address
-- Official website OR Google Maps link (PRIMARY)
-- Secondary link if available
+- EXACT address (copied verbatim)
+- PRIMARY URL (Maps or official website)
+- Secondary URL (optional)
 - Short factual description
 
-DO NOT use HTML.
+No HTML allowed.
 """,
             agent=researcher,
-            expected_output="Verified, accurate research with NO hallucinations"
+            expected_output="Verified research with zero hallucinations."
         )
 
         # ============================================================
-        # TASK 2 — REVIEW (THE GATEKEEPER)
+        # TASK 2 — REVIEW (THE ACCURACY GATEKEEPER)
         # ============================================================
 
         review_task = Task(
             description="""
-Review the research for destination: {destination}
+Review the research for: {destination}
 
-You MUST:
-- Validate every restaurant and provider
-- Remove anything not in the correct city + country
-- Reject invented or generic names
-- Reject businesses with no confirmed website/Maps listing
-- Reject ambiguous multi-location names
-- Confirm activities have real providers
-- Confirm restaurants have Google Maps URLs
-- Confirm attractions have official websites
-- Confirm businesses are active (recent reviews)
-- Remove any unverifiable locations
+=========================================================
+RE-VERIFICATION REQUIREMENTS
+=========================================================
+For EACH location, you MUST:
+1. Perform a fresh Google Search:
+   “[Business Name] [Street Address] [City] [Country]”
+2. Confirm:
+   - Business exists
+   - Business is active
+   - Address EXACTLY matches the verified source
+   - Maps + Website are consistent
+   - The branch is in the correct city
 
-Your job is to eliminate ALL hallucinations.
+If ANY mismatch → REMOVE the location.
+
+=========================================================
+REJECT ALL:
+=========================================================
+- Wrong addresses
+- Alternate-country results
+- Ambiguous multi-location names
+- Generic placeholders
+- Invented or artistic mashups
+- Activities without real providers
+- Restaurants without Maps listings
+- Attractions without official websites
+
+If something is removed, replace it ONLY with a verified alternative.
 
 Output: fully validated research.
 """,
             agent=reviewer,
-            expected_output="Verified, hallucination-free research"
+            expected_output="Clean, validated, hallucination-free research."
         )
 
         # ============================================================
-        # TASK 3 — PLANNING (HTML OUTPUT)
+        # TASK 3 — PLANNING (STRICT HTML OUTPUT)
         # ============================================================
 
         planning_task = Task(
@@ -239,7 +268,7 @@ Create a detailed {duration}-day itinerary using ONLY the validated research.
 =========================================================
 ZORA DIGITAL BRAND COLORS (REQUIRED)
 =========================================================
-Insert EXACT <style> block inside <head>:
+Insert EXACT <style> block into <head>:
 
 <style>
   body { font-family: Arial; color: #3D3D3D; }
@@ -251,36 +280,48 @@ Insert EXACT <style> block inside <head>:
 </style>
 
 =========================================================
-HYPERLINK RULES — NEW TAB REQUIRED
+HYPERLINK RULES (NEW TAB REQUIRED)
 =========================================================
-ALL hyperlinks MUST be formatted EXACTLY:
+EVERY location MUST include a hyperlink using EXACT format:
 
 <a href="PRIMARY_URL" target="_blank" rel="noopener noreferrer">Name</a>
 
-Rules:
-- Restaurants → Google Maps link only
-- Attractions → Official website only
-- Activities → Official provider website only
-- No plain text names
-- No missing links
+PRIMARY:
+- Restaurants → Google Maps
+- Attractions → Official website
+- Activities → Provider website
+
+No plain-text names.
+
+=========================================================
+ADDRESS OUTPUT RULE
+=========================================================
+You MUST output the address EXACTLY as provided by the reviewer.
+Do NOT:
+- Modify formatting
+- Rewrite the street name
+- Fix perceived typos
+- Add arrondissement numbers
+- Translate anything
+
+If address is missing → EXCLUDE the location.
 
 =========================================================
 STRICT NO-INVENTION RULE
 =========================================================
 You MUST NOT:
-- Create fictional restaurants
-- Create fictional activities/events
-- Suggest generic placeholders
-- Invent names or locations
-- Add anything not in the reviewer output
+- Add fictional places
+- Add generic restaurants
+- Suggest activities not in the research
+- Add ANYTHING not reviewed
 
 =========================================================
-HTML STRUCTURE (REQUIRED)
+HTML STRUCTURE (MANDATORY)
 =========================================================
-[Use the same Day-by-Day structure from your existing itinerary rules. Omitted here for length.]
+Follow the exact Day-by-Day structure already in your itinerary spec.
 """,
             agent=planner,
-            expected_output="Accurate HTML itinerary with verified links"
+            expected_output="Accurate, fully verified HTML itinerary."
         )
 
         # ============================================================
