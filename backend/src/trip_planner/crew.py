@@ -1,7 +1,19 @@
 from crewai import Agent, Task, Crew
 from crewai_tools import SerperDevTool
-from collections import defaultdict
+import requests
 import re
+from collections import Counter
+
+# -----------------------
+# Utility: URL Validator
+# -----------------------
+
+def is_valid_url(url):
+    try:
+        response = requests.head(url, allow_redirects=True, timeout=5)
+        return response.status_code == 200 and 'text/html' in response.headers.get('Content-Type', '')
+    except requests.RequestException:
+        return False
 
 
 class TripPlanner:
@@ -16,140 +28,122 @@ class TripPlanner:
     def _create_crew(self) -> Crew:
         search_tool = SerperDevTool()
 
-        # === AGENTS ===
+        # ---------------------
+        # Agents
+        # ---------------------
 
         researcher = Agent(
-            role="Precision Travel Researcher",
-            goal="Gather verified travel data. Use only trustworthy sources (Google Maps, official websites, or curated travel blogs). Never invent names or locations.",
-            backstory="You are a highly accurate researcher. If you can't find a verifiable activity, you provide a real blog link from a trusted source that matches the user's travel style.",
+            role="Verified Travel Researcher",
+            goal="Gather only real, verified travel listings. No fake names or placeholders. Use blog links only when necessary.",
+            backstory="You are a no-hallucination researcher. You verify every listing using trusted sources. If something can't be confirmed, you find a matching travel blog.",
             tools=[search_tool],
             verbose=True,
             allow_delegation=False,
         )
 
         reviewer = Agent(
-            role="Travel Research Auditor",
-            goal="Verify all entries for accuracy, remove hallucinations, and check blog category correctness.",
-            backstory="You ensure that all listings are real, addresses match sources, and blog suggestions match their assigned category.",
+            role="Travel Quality Auditor",
+            goal="Audit the research for correctness, validity, and clean blog category alignment. Remove hallucinated names like 'Detroit Market' and check all URLs.",
+            backstory="You are the last line of defense. You catch fake places, broken links, and blog mismatches. You allow only factual listings.",
             tools=[search_tool],
             verbose=True,
             allow_delegation=False,
         )
 
         planner = Agent(
-            role="Itinerary Builder",
-            goal="Use validated research to generate a clean, day-by-day HTML itinerary. Add blog suggestions (1 per category) at the end if some entries are missing.",
-            backstory="You turn reviewed research into a structured itinerary with clear formatting and one blog suggestion per missing activity category.",
+            role="Itinerary Generator",
+            goal="Create a structured, clean HTML itinerary using verified entries. Move all blog fallback links to the end, and verify that links are working before including them.",
+            backstory="You turn research into a clean itinerary. You validate all blog links and use one per category only if valid and useful.",
             tools=[search_tool],
             verbose=True,
             allow_delegation=False,
         )
 
-        # === TASKS ===
+        # ---------------------
+        # Tasks
+        # ---------------------
 
         research_task = Task(
             description="""
-Research destination: {destination}
+Research: {destination}
+Travel Style: {travel_style}
 Duration: {duration} days
 Budget: {budget}
-Travel Style: {travel_style}
 Special Requirements: {special_requirements}
 
-🚫 Do NOT invent places.
-✅ Use Google Maps, official websites, or curated blog sources.
+✅ Use only verified listings from Google Maps or official sources.
 
-🏨 Hotels: Provide 3 verified hotel options. Include name, price range, location, and primary URL.
+❌ Do NOT use made-up names like 'Detroit Market', 'Local eatery', etc.
 
-📚 Fallback blog requirement:
-If specific restaurants, attractions, or activities are not verifiable, search for one high-quality blog per category based on travel style.
+🏨 Provide 3 valid hotels with full names, price range, and address.
 
-Blog matching rules:
-- Adventure → "Outdoor Activities in [destination]"
-- Relaxation → "Top Spas and Wellness in [destination]"
-- Cultural → "Best Museums or Cultural Attractions in [destination]"
-- Food & Dining → "Top Restaurants or Food Tours in [destination]"
-- Nature & Outdoors → "Parks or Outdoor Spaces in [destination]"
-- Nightlife → "Bars or Clubs in [destination]"
-- Family-Friendly → "Things to Do with Kids in [destination]"
+📚 If you cannot find enough restaurants, attractions, or nightlife:
+→ Provide a blog article from a trusted travel source.
 
-Each blog must include:
-- Title
-- URL
-- 1-sentence summary
-- Source (TimeOut, Lonely Planet, etc.)
+Each blog must be:
+- A full article (not a category page)
+- Relevant to one of the following:
+  Adventure, Relaxation, Cultural, Family-Friendly, Food & Dining, Nature & Outdoors, Nightlife
+- Include: Title, URL, short summary
 """,
             agent=researcher,
-            expected_output="Verified list of activities, 3 hotels, and blog fallback links"
+            expected_output="Verified listings + fallback blog links if needed"
         )
 
         review_task = Task(
             description="""
-Review travel research for: {destination}
+Review the research results for:
+- Broken or invalid URLs (must return HTTP 200)
+- Made-up place names like 'Detroit Market', 'Local eatery'
+- Blog links that don't match their assigned category
+- Ensure 3 hotel options are valid
 
-🧹 You must:
-- Remove fake listings
-- Validate each activity, hotel, and restaurant
-- Check that each blog matches its assigned category using title/content
-
-Examples:
-- If blog is labeled "Cultural" but it's about outdoor parks → Reject
-- If hotel URLs are broken → Replace or remove
-
-Ensure 3 hotel options are included.
+Reject:
+- Homepages (like /food or /restaurants)
+- Blogs that link to top-level directories
+- Fake sounding names
 """,
             agent=reviewer,
-            expected_output="Cleaned and validated travel data"
+            expected_output="Cleaned, audited data with validated URLs and hotels"
         )
 
         planning_task = Task(
             description="""
-Create an HTML-formatted {duration}-day itinerary for {destination}.
+Create a {duration}-day itinerary for {destination}.
 
-🏨 Hotels:
-Start with <h2>Accommodation Options</h2> listing 3 verified hotels.
+🏨 Start with: <h2>Accommodation Options</h2>
+Include 3 hotels, with:
+- Name
+- Price range
+- Location
+- Hyperlink (verified)
 
-📅 Daily format:
+📅 For each day, use:
 <h2>Day X: [Title]</h2>
-<p><strong>Morning:</strong> Activity</p>
-<p><strong>Afternoon:</strong> Activity</p>
-<p><strong>Evening:</strong> Activity</p>
-<p><strong>Estimated Costs:</strong></p>
-<ul>
-  <li>Transportation: $X</li>
-  <li>Food: $X</li>
-  <li>Activities: $X</li>
-  <li><strong>Total: $X</strong></li>
-</ul>
+<p><strong>Morning:</strong> Specific Activity</p>
+<p><strong>Afternoon:</strong> Specific Activity</p>
+<p><strong>Evening:</strong> Specific Restaurant or Activity</p>
 
-📚 Suggestions & Resources Section:
-If activities, restaurants, or experiences are missing → include fallback blog links (1 per category max) in a final section.
+⚠️ Do NOT include vague names like:
+- 'Detroit Market'
+- 'Local eatery'
+- 'Shopping district'
+- 'Downtown cafe'
+
+📚 If specific restaurants/activities are missing:
+→ At the end, include:
 
 <h2>Suggestions & Resources</h2>
 <ul>
-  <li><strong>[Category]:</strong> <a href="URL" target="_blank" rel="noopener noreferrer">Blog Title</a></li>
+  <li><strong>Category:</strong> <a href="VALID_URL" target="_blank" rel="noopener noreferrer">Blog Title</a> – Short summary</li>
 </ul>
 
-💡 CATEGORY VALIDATION:
-Only assign a blog to a category if:
-- Cultural: mentions museums, history, art
-- Food & Dining: includes "restaurants," "eateries"
-- Nightlife: mentions bars, clubs
-- Outdoors: mentions parks, nature, hiking
-- Family-Friendly: says "with kids," "child-friendly"
+🎯 Only ONE blog per category.
 
-🎨 Style (HTML):
-Insert in <head>:
-<style>
-  body { font-family: Arial; color: #3D3D3D; }
-  h1 { color: #0F0F0F; }
-  h2 { color: #1C1C1C; }
-  p, li { color: #3D3D3D; line-height: 1.6; }
-  a { color: #2C7EF4; font-weight: 600; text-decoration: none; }
-  a:hover { text-decoration: underline; }
-</style>
+✅ Use blog ONLY if valid (HTTP 200, HTML, travel source).
 """,
             agent=planner,
-            expected_output="Clean HTML itinerary with blog fallbacks grouped at the end"
+            expected_output="Formatted HTML itinerary with blog links in final section only"
         )
 
         return Crew(
@@ -160,31 +154,32 @@ Insert in <head>:
         )
 
 
-# === VALIDATION FUNCTION ===
+# ---------------------
+# Validator
+# ---------------------
 
-def validate_itinerary_output(itinerary_text: str, travel_style: str = ""):
+def validate_itinerary_output(itinerary_text: str):
     errors = []
+
+    # 1. Check for fake sounding names
+    invalid_phrases = ['Detroit Market', 'local eatery', 'local bistro', 'shopping area']
+    for phrase in invalid_phrases:
+        if phrase.lower() in itinerary_text.lower():
+            errors.append(f"❌ Invalid phrase found: '{phrase}'")
+
+    # 2. Check blog links
     blog_links = re.findall(r'<a href="([^"]+)"[^>]*>([^<]+)</a>', itinerary_text)
+    for url, title in blog_links:
+        if not is_valid_url(url):
+            errors.append(f"❌ Blog URL not valid or reachable: {url}")
 
-    # Validate Suggestions section presence
-    if "Suggestions & Resources" not in itinerary_text:
-        errors.append("⚠️ Missing Suggestions & Resources section")
+    # 3. Ensure blog section appears only once
+    if itinerary_text.count("Suggestions & Resources") > 1:
+        errors.append("⚠️ Suggestions section appears more than once")
 
-    # Check for duplicate blog links
-    urls = [url for url, _ in blog_links]
-    if len(set(urls)) < len(urls):
-        errors.append("⚠️ Duplicate blog URLs found in suggestions")
-
-    # Check for mismatched blog categories
-    if travel_style.lower() == "cultural":
-        for _, title in blog_links:
-            if "outdoor" in title.lower():
-                errors.append("❌ Outdoor blog incorrectly labeled as Cultural")
-                break
-
-    # Ensure 3 hotel options
+    # 4. Check for hotel options
     hotel_count = len(re.findall(r'Option \d: ', itinerary_text))
     if hotel_count != 3:
         errors.append(f"⚠️ Found {hotel_count} hotel options. Expected 3.")
 
-    return "✅ Itinerary passed all checks" if not errors else "\n".join(errors)
+    return "✅ Passed all validation checks" if not errors else "\n".join(errors)

@@ -6,3 +6,4 @@ crewai[tools]>=1.5.0
 crewai-tools>=1.5.0
 weasyprint>=60.0
 pyspellchecker>=0.7.2
+requests>=2.31.0
