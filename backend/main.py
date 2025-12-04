@@ -885,28 +885,67 @@ async def run_crew_async(trip_id: str, inputs: Dict[str, Any]):
                 
                 for place_name, keywords in problematic_places.items():
                     # Find URLs near these place names in the HTML
+                    # Look for place name followed by anchor tag with href
                     place_pattern = r'(?i)(' + '|'.join(keywords) + r')[^<]*<a[^>]+href="([^"]+)"'
                     matches = re.findall(place_pattern, html_content)
+                    
+                    # Also try reverse: find href followed by place name
+                    reverse_pattern = r'<a[^>]+href="([^"]+)"[^>]*>[^<]*(' + '|'.join(keywords) + r')'
+                    reverse_matches = re.findall(reverse_pattern, html_content)
+                    
+                    all_matches = []
                     if matches:
-                        for match in matches[:2]:  # Show first 2 matches
+                        for match in matches:
                             url = match[1] if isinstance(match, tuple) else match
-                            print(f"  🔍 {place_name}: {url}")
+                            all_matches.append(("forward", url))
+                    if reverse_matches:
+                        for match in reverse_matches:
+                            url = match[0] if isinstance(match, tuple) else match
+                            all_matches.append(("reverse", url))
+                    
+                    if all_matches:
+                        print(f"  🔍 {place_name}: Found {len(all_matches)} URL(s)")
+                        for match_type, url in all_matches[:3]:  # Show first 3 matches
+                            print(f"    [{match_type}] {url}")
                             # Validate URL format
                             if "query_place_id" not in url:
-                                print(f"    ⚠️ WARNING: URL missing query_place_id parameter")
+                                print(f"      ⚠️ WARNING: URL missing query_place_id parameter")
                             if "maps.google.com/?cid=" in url:
-                                print(f"    ❌ ERROR: Using unreliable CID format")
+                                print(f"      ❌ ERROR: Using unreliable CID format")
+                            if "maps/search" not in url:
+                                print(f"      ⚠️ WARNING: URL format may be incorrect (expected /search/ format)")
+                    else:
+                        print(f"  ⚠️ {place_name}: No URL found in HTML")
                 
-                # Log sample of Google Maps URLs
+                # Log sample of Google Maps URLs with detailed validation
                 if google_maps_urls:
-                    print(f"  Sample Google Maps URLs (first 5):")
-                    for url in google_maps_urls[:5]:
-                        print(f"    - {url}")
+                    print(f"  Sample Google Maps URLs (first 10):")
+                    for idx, url in enumerate(google_maps_urls[:10], 1):
+                        print(f"    [{idx}] {url}")
                         # Check URL format
+                        issues = []
                         if "query_place_id" not in url:
-                            print(f"      ⚠️ Missing query_place_id")
+                            issues.append("Missing query_place_id")
                         if "maps.google.com/?cid=" in url:
-                            print(f"      ❌ Using CID format (unreliable)")
+                            issues.append("Using CID format (unreliable)")
+                        if "maps/search" not in url and "maps/place" not in url:
+                            issues.append("Unexpected URL format")
+                        if len(url) < 50:
+                            issues.append("URL seems too short (may be truncated)")
+                        if issues:
+                            print(f"      ⚠️ Issues: {', '.join(issues)}")
+                        else:
+                            print(f"      ✅ URL format looks correct")
+                    
+                    # Check for duplicate URLs (indicates URL reuse)
+                    url_counts = {}
+                    for url in google_maps_urls:
+                        url_counts[url] = url_counts.get(url, 0) + 1
+                    duplicates = {url: count for url, count in url_counts.items() if count > 1}
+                    if duplicates:
+                        print(f"  ⚠️ WARNING: Found {len(duplicates)} duplicate URL(s) (used for multiple places):")
+                        for url, count in list(duplicates.items())[:5]:
+                            print(f"    - Used {count} times: {url[:80]}...")
                             
             except Exception as e:
                 print(f"[{trip_id}] ⚠️ URL extraction error (non-blocking): {e}")

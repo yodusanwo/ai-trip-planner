@@ -163,42 +163,61 @@ If any place fails validation → remove and find replacement using Google Place
             description="""
 Using verified Google Places research only, create a {duration}-day itinerary for {destination}.
 
+🔴 CRITICAL: URL COPYING RULES
+- The research data contains a "maps_url" field for each place in JSON format
+- You MUST copy the EXACT URL from the "maps_url" field - do NOT modify, shorten, or reconstruct it
+- Each place has a unique "maps_url" - match the place name to its exact "maps_url" from the research
+- Example JSON structure from research:
+  {
+    "name": "Musée d'Orsay",
+    "address": "1 Rue de la Légion d'Honneur, 75007 Paris, France",
+    "maps_url": "https://www.google.com/maps/search/?api=1&query=Musée+d'Orsay&query_place_id=ChIJ...",
+    "rating": 4.8,
+    "reviews": 85771
+  }
+- When creating the HTML, copy the EXACT "maps_url" value: "https://www.google.com/maps/search/?api=1&query=Musée+d'Orsay&query_place_id=ChIJ..."
+- NEVER create your own URLs or use placeholders
+- NEVER reuse a URL from a different place
+- NEVER modify the URL (don't remove parameters, don't shorten it, don't change the format)
+
 🏨 Section: <h2>Accommodation Options</h2>
 List 3 hotel options from Google Places:
-- Name (from Google Places)
-- Formatted address (from Google Places)
-- Rating: ⭐ X.X/5 (X reviews) - include if available
-- Hyperlink: Use Google Maps URL from Place Details
-  Format: <a href="GOOGLE_MAPS_URL" target="_blank" rel="noopener noreferrer">View on Google Maps</a>
+- Name (copy exactly from research "name" field)
+- Formatted address (copy exactly from research "address" field)
+- Rating: ⭐ X.X/5 (X reviews) - copy from research "rating" and "reviews" fields
+- Hyperlink: Copy the EXACT URL from research "maps_url" field
+  Format: <a href="[EXACT maps_url FROM RESEARCH]" target="_blank" rel="noopener noreferrer">View on Google Maps</a>
 
 📅 Daily Structure (MUST follow this exact format for ALL days):
 <h2>Day X: [Theme]</h2>
-<p><strong>Morning:</strong> Visit <a href="UNIQUE_GOOGLE_MAPS_URL" target="_blank">[Place Name]</a> - [Address from Google Places] ⭐ [Rating]/5 ([Review Count] reviews)</p>
-<p><strong>Afternoon:</strong> Explore <a href="UNIQUE_GOOGLE_MAPS_URL" target="_blank">[Attraction Name]</a> - [Address] ⭐ [Rating]/5 ([Review Count] reviews)</p>
-<p><strong>Evening:</strong> Dinner at <a href="UNIQUE_GOOGLE_MAPS_URL" target="_blank">[Restaurant Name]</a> - [Address] ⭐ [Rating]/5 ([Review Count] reviews)</p>
+<p><strong>Morning:</strong> Visit <a href="[EXACT maps_url FROM RESEARCH FOR THIS PLACE]" target="_blank">[Place Name]</a> - [Address] ⭐ [Rating]/5 ([Review Count] reviews)</p>
+<p><strong>Afternoon:</strong> Explore <a href="[EXACT maps_url FROM RESEARCH FOR THIS PLACE]" target="_blank">[Attraction Name]</a> - [Address] ⭐ [Rating]/5 ([Review Count] reviews)</p>
+<p><strong>Evening:</strong> Dinner at <a href="[EXACT maps_url FROM RESEARCH FOR THIS PLACE]" target="_blank">[Restaurant Name]</a> - [Address] ⭐ [Rating]/5 ([Review Count] reviews)</p>
 
 🔴 CRITICAL RULES:
-1. Each place MUST have its OWN unique Google Maps URL - NEVER reuse a URL from a different place
-2. Match each place name EXACTLY to its corresponding Google Maps URL from the research
-3. Verify URL-place name match: If place is "Musée d'Orsay", use Musée d'Orsay's URL (NOT Conciergerie's URL)
-4. Maintain proper HTML structure: Each day must have exactly 3 paragraphs (Morning, Afternoon, Evening)
-5. Keep days in sequential order (Day 1, Day 2, Day 3... Day {duration})
-6. Each place must appear only once per itinerary (no duplicates)
+1. Copy the EXACT "maps_url" from research - do NOT modify it
+2. Match each place name to its corresponding "maps_url" from the research JSON
+3. Verify URL-place name match: If place is "Musée d'Orsay", find "Musée d'Orsay" in research and copy its exact "maps_url"
+4. Each place MUST have its OWN unique Google Maps URL - NEVER reuse a URL from a different place
+5. Maintain proper HTML structure: Each day must have exactly 3 paragraphs (Morning, Afternoon, Evening)
+6. Keep days in sequential order (Day 1, Day 2, Day 3... Day {duration})
+7. Each place must appear only once per itinerary (no duplicates)
 
 ✅ REQUIRED for each place:
-- Unique Google Maps URL from Google Places API (one URL per place, never reused)
-- Formatted address from Google Places (must match the place name)
-- Rating and review count (if available)
-- Real business name (not generic descriptions)
+- Copy EXACT "maps_url" from research (do not modify or reconstruct)
+- Copy exact "name" from research
+- Copy exact "address" from research
+- Copy exact "rating" and "reviews" from research
 
 ⚠️ Do NOT:
+- Modify, shorten, or reconstruct URLs - copy them exactly as provided
 - Reuse Google Maps URLs from different places
 - Use Conciergerie's URL for Musée d'Orsay (or any other place)
 - Mix up place names with wrong URLs
 - Create malformed HTML (broken tags, wrong order)
 - Include generic names like "local bistro", "Detroit Market"
 - Include unlinked place names
-- Use URLs not from Google Places API
+- Use URLs not from Google Places API research
 - Include places without addresses
 
 📚 Fallbacks (only if no verified places available):
