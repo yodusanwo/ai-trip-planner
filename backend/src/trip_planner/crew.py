@@ -1,7 +1,7 @@
 from crewai import Agent, Task, Crew
 from crewai_tools import SerperDevTool
 import re
-from collections import Counter
+from collections import defaultdict
 
 
 class TripPlanner:
@@ -38,8 +38,8 @@ class TripPlanner:
 
         planner = Agent(
             role="HTML Itinerary Builder",
-            goal="Turn validated research into a clean HTML travel itinerary. Format consistently. Use real names only. If any items are missing, insert a blog fallback based on travel style at the bottom of the day.",
-            backstory="You build accurate itineraries with verified names only. When something is missing, you insert ONE blog fallback per day that matches the travel style. You never reuse blogs across days or categories.",
+            goal="Turn validated research into a clean HTML itinerary. Format consistently. Use real names only. If any items are missing, gather blog fallback links per category, and show them once in a Suggestions & Resources section at the end.",
+            backstory="You build accurate itineraries with verified names only. When something is missing, you gather at most one blog link per category (e.g., Food, Family) and display them in a section at the end.",
             tools=[search_tool],
             verbose=True,
             allow_delegation=False,
@@ -105,7 +105,7 @@ Audit all research for: {destination}
 ❌ REJECT:
 - Fake or invented names
 - Mislocated businesses
-- Blogs that don’t match the category (e.g., family blog used for nightlife)
+- Blogs that don't match the category (e.g., family blog used for nightlife)
 
 ✅ Ensure exactly 3 valid accommodations are present
 """,
@@ -136,18 +136,20 @@ Each day must follow this format:
   <li><strong>Total: $X</strong></li>
 </ul>
 
-🧠 IF MISSING DATA (NO VALID RESTAURANT OR ACTIVITY):
-→ INSERT ONE blog link at the end of the day:
-<p><strong>Suggestions:</strong> 
-<a href="[blog_url]" target="_blank" rel="noopener noreferrer">[blog_title]</a></p>
+🧠 IF MISSING ITEMS:
+→ Do NOT insert blog links inside day sections.
+→ Instead, gather one fallback blog per relevant category.
 
-The blog MUST match {travel_style} using this mapping:
-- Adventure → Activities blog
-- Food & Dining → Restaurant blog
-- Nightlife → Bars & clubs blog
-- Family-Friendly → Kid-friendly attractions blog
+✅ At the end of the itinerary, include:
+<h2>Suggestions & Resources</h2>
+<ul>
+  <li><strong>[Category Name]:</strong> 
+  <a href="[blog_url]" target="_blank" rel="noopener noreferrer">[blog_title]</a></li>
+</ul>
 
-DO NOT repeat the same blog across multiple days.
+Only one blog per category.
+No duplicated links.
+No irrelevant blog types.
 
 🎨 BRAND STYLE (HTML HEAD):
 Include:
@@ -161,7 +163,7 @@ Include:
 </style>
 """,
             agent=planner,
-            expected_output="HTML-formatted itinerary with one blog fallback per day if needed."
+            expected_output="HTML itinerary with validated items and one fallback blog per category shown at the end."
         )
 
         return Crew(
@@ -176,19 +178,24 @@ Include:
 
 def validate_itinerary_output(itinerary_text: str, travel_style: str = ""):
     errors = []
+    blog_links_by_category = defaultdict(list)
 
     # Blog reuse detection
     blog_links = re.findall(r'href="([^"]+)"', itinerary_text)
-    if len(set(blog_links)) < len(blog_links) // 2:
-        errors.append("⚠️ Blog links are reused excessively across different days.")
+    if len(set(blog_links)) < len(blog_links):
+        errors.append("⚠️ Some blog links appear more than once.")
 
     # Style mismatch detection
     if travel_style and "family" in "".join(blog_links).lower() and "food" in travel_style.lower():
         errors.append("❌ A 'Family' blog link was incorrectly used for a Food & Dining trip.")
 
-    # Check hotel count
+    # Hotel check
     hotel_options = re.findall(r'Option \d: ([^\n<]+)', itinerary_text)
     if len(hotel_options) != 3:
         errors.append(f"⚠️ Expected 3 hotel options, found {len(hotel_options)}.")
+
+    # Suggestions section presence
+    if "Suggestions & Resources" not in itinerary_text:
+        errors.append("⚠️ Missing Suggestions & Resources section for fallback blogs.")
 
     return "✅ Itinerary passed all validation checks." if not errors else "\n".join(errors)
