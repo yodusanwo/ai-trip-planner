@@ -1,7 +1,9 @@
 from crewai import Agent, Task, Crew
 from crewai_tools import SerperDevTool
+from .google_places_tools import GooglePlacesSearchTool, GooglePlaceDetailsTool, GooglePlacesAutocompleteTool
 import requests
 import re
+import os
 from collections import Counter
 
 # -----------------------
@@ -28,34 +30,47 @@ class TripPlanner:
         return self._crew
 
     def _create_crew(self) -> Crew:
-        search_tool = SerperDevTool()
+        # Initialize Google Places API tools
+        google_api_key = os.getenv("GOOGLE_PLACES_API_KEY")
+        
+        # Primary tool: Google Places Search (verified places)
+        places_search_tool = GooglePlacesSearchTool(api_key=google_api_key) if google_api_key else None
+        place_details_tool = GooglePlaceDetailsTool(api_key=google_api_key) if google_api_key else None
+        
+        # Fallback tool: SerperDevTool (for blogs and general web search)
+        web_search_tool = SerperDevTool()
+        
+        # Combine tools - prioritize Google Places, fallback to web search
+        researcher_tools = [tool for tool in [places_search_tool, place_details_tool, web_search_tool] if tool]
+        reviewer_tools = [tool for tool in [places_search_tool, place_details_tool, web_search_tool] if tool]
+        planner_tools = [tool for tool in [places_search_tool, place_details_tool, web_search_tool] if tool]
 
         # ---------------------
         # Agents
         # ---------------------
         researcher = Agent(
             role="Verified Travel Researcher",
-            goal="Gather real, verified travel listings. No placeholder names. Include fallback blogs if needed.",
-            backstory="You find reliable listings for restaurants, attractions, and hotels. If nothing verifiable is found, return a relevant travel blog article instead.",
-            tools=[search_tool],
+            goal="Gather real, verified travel listings using Google Places API. Prioritize verified businesses with ratings and reviews. Use web search only for travel blogs as fallback.",
+            backstory="You find reliable listings using Google Places API which provides verified businesses with real addresses, phone numbers, ratings, and Google Maps links. You prioritize places with good ratings (4.0+) and multiple reviews. Only use web search for finding travel blog articles when specific places aren't available.",
+            tools=researcher_tools,
             verbose=True,
             allow_delegation=False,
         )
 
         reviewer = Agent(
             role="Travel Accuracy Auditor",
-            goal="Check for hallucinations, generic names, and broken links. Verify all data. Replace vague entries with verified blogs if needed.",
-            backstory="You audit listings for accuracy, validate URLs, and ensure correct formatting. You eliminate fake names like 'Detroit Market'.",
-            tools=[search_tool],
+            goal="Verify all places using Google Places API. Reject places with bad ratings (<3.5), closed status, or missing critical information. Ensure all places have valid Google Maps URLs.",
+            backstory="You audit listings using Google Places API to verify business status, ratings, and availability. You reject places that are permanently closed, have poor ratings, or lack essential information. You ensure all places have valid Google Maps URLs for user navigation.",
+            tools=reviewer_tools,
             verbose=True,
             allow_delegation=False,
         )
 
         planner = Agent(
             role="Clean Itinerary Formatter",
-            goal="Generate a structured HTML itinerary using verified listings and blog fallbacks when needed. Ensure all names are linked and real.",
-            backstory="You turn research into clean itineraries. If a location can't be verified, link to a helpful blog instead and place all blogs in a 'Suggestions' section at the end. When using the search tool, always use search_query parameter (not description).",
-            tools=[search_tool],
+            goal="Generate a structured HTML itinerary using verified Google Places data. Always use Google Maps URLs from Place Details. Include ratings and addresses from verified sources.",
+            backstory="You format verified place information into clean HTML itineraries. You use Google Maps URLs and formatted addresses from Google Places API. You include ratings and review counts to help users make informed decisions. Only use web search results for travel blog fallbacks.",
+            tools=planner_tools,
             verbose=True,
             allow_delegation=False,
         )
@@ -67,72 +82,104 @@ class TripPlanner:
             description="""
 Research {destination} for a {duration}-day {travel_style}-style trip.
 
-🔍 TOOL USAGE:
-When using the search tool, ALWAYS use this format:
-- Parameter name: "search_query" (NOT "description")
-- Example: search_query="restaurants in Traverse City Michigan"
+🔍 TOOL USAGE PRIORITY:
+1. FIRST: Use "Search Verified Places" tool with Google Places API
+   - For restaurants: query="restaurants in {destination}", place_type="restaurant"
+   - For attractions: query="tourist attractions in {destination}", place_type="tourist_attraction"
+   - For hotels: query="hotels in {destination}", place_type="lodging"
+   - Always include location="{destination}" parameter
 
-✅ Find real-world listings:
-- Restaurants, attractions, and 3 hotel options
-- Copy names and links exactly from Maps or official websites
+2. THEN: Use "Get Place Details" tool to enrich results with:
+   - Full address, phone, website
+   - Google Maps URL
+   - Rating and review count
+   - Opening hours
+   - Business status
 
-❌ DO NOT include:
-- Placeholders like 'Detroit Market', 'local café', or 'downtown eats'
-- Generic suggestions
+3. FALLBACK: Use web search ONLY for travel blogs if no verified places found
 
-📚 If nothing valid is found in a category, find a relevant travel blog:
-- Title, URL, short summary
-- One blog per category (e.g., Top Family Attractions in Detroit)
+✅ Find verified listings:
+- Restaurants: Use Google Places, prioritize 4.0+ ratings, 50+ reviews
+- Attractions: Use Google Places, prioritize 4.0+ ratings
+- Hotels: Use Google Places, find 3 options with different price ranges
 
-⚠️ Blog must be:
-- A full article, not a homepage or directory
-- Valid URL (status 200, HTML page)
+❌ REJECT places with:
+- Rating < 3.5 stars
+- Business status: "CLOSED_PERMANENTLY"
+- Missing Google Maps URL
+- Placeholders like 'Detroit Market', 'local café'
+
+📚 If no verified places found, use web search for travel blogs:
+- One blog per category only
+- Must be full article (not homepage)
 """,
             agent=researcher,
-            expected_output="Verified listings + fallback blog links (if needed)"
+            expected_output="Verified Google Places listings with ratings, addresses, and Maps URLs + fallback blog links (if needed)"
         )
 
         review_task = Task(
             description="""
-Validate listings for: {destination}
+Validate listings for: {destination} using Google Places API.
 
-🔍 TOOL USAGE:
-When using the search tool, ALWAYS use: search_query="your search term" (NOT "description")
+🔍 VALIDATION STEPS:
+1. Use "Get Place Details" tool to verify each place:
+   - Check business_status: REJECT if "CLOSED_PERMANENTLY"
+   - Check rating: REJECT if < 3.5 stars
+   - Verify Google Maps URL exists
+   - Ensure formatted_address is present
 
-1. Check for invalid names like 'local eatery', 'Detroit Market'
-2. Make sure all URLs are valid (status 200 + content-type: HTML)
-3. Ensure 3 hotels are included
-4. Limit blogs to 1 per category
+2. Check for invalid names:
+   - Reject generic names like 'local eatery', 'Detroit Market'
+   - Reject placeholders without real addresses
 
-If any blog or place fails validation → remove or replace with a valid one.
+3. Ensure 3 verified hotels with:
+   - Valid Google Maps URLs
+   - Ratings 3.5+ stars
+   - Business status: "OPERATIONAL"
+
+4. Validate all URLs:
+   - Google Maps URLs must be from Google Places API
+   - Website URLs must return status 200
+
+5. Limit blogs to 1 per category (only if no verified places available)
+
+If any place fails validation → remove and find replacement using Google Places API.
 """,
             agent=reviewer,
-            expected_output="Cleaned research with valid links and no hallucinations"
+            expected_output="Validated Google Places listings with verified status, ratings, and Maps URLs"
         )
 
         planning_task = Task(
             description="""
-Using verified research only, create a {duration}-day itinerary for {destination}.
+Using verified Google Places research only, create a {duration}-day itinerary for {destination}.
 
 🏨 Section: <h2>Accommodation Options</h2>
-List 3 hotel options:
-- Name
-- Price range
-- Location
-- Hyperlink as: <a href="..." target="_blank" rel="noopener noreferrer">Book Here</a>
+List 3 hotel options from Google Places:
+- Name (from Google Places)
+- Formatted address (from Google Places)
+- Rating: ⭐ X.X/5 (X reviews) - include if available
+- Hyperlink: Use Google Maps URL from Place Details
+  Format: <a href="GOOGLE_MAPS_URL" target="_blank" rel="noopener noreferrer">View on Google Maps</a>
 
 📅 Daily Structure:
 <h2>Day X: [Theme]</h2>
-<p><strong>Morning:</strong> Visit <a href="..." target="_blank">[Place]</a></p>
-<p><strong>Afternoon:</strong> Explore <a href="..." target="_blank">[Attraction]</a></p>
-<p><strong>Evening:</strong> Dinner at <a href="..." target="_blank">[Restaurant]</a></p>
+<p><strong>Morning:</strong> Visit <a href="GOOGLE_MAPS_URL" target="_blank">[Place Name]</a> - [Address from Google Places] ⭐ [Rating]/5</p>
+<p><strong>Afternoon:</strong> Explore <a href="GOOGLE_MAPS_URL" target="_blank">[Attraction Name]</a> - [Address] ⭐ [Rating]/5</p>
+<p><strong>Evening:</strong> Dinner at <a href="GOOGLE_MAPS_URL" target="_blank">[Restaurant Name]</a> - [Address] ⭐ [Rating]/5</p>
+
+✅ REQUIRED for each place:
+- Google Maps URL from Google Places API (not generic web search)
+- Formatted address from Google Places
+- Rating and review count (if available)
+- Real business name (not generic descriptions)
 
 ⚠️ Do NOT include:
 - Generic names like "local bistro", "Detroit Market"
-- Unlinked names
-- Broken blog or business URLs
+- Unlinked place names
+- URLs not from Google Places API
+- Places without addresses
 
-📚 Fallbacks (if needed):
+📚 Fallbacks (only if no verified places available):
 <h2>Suggestions & Resources</h2>
 <ul>
   <li><strong>[Category]:</strong> <a href="VALID_URL" target="_blank" rel="noopener noreferrer">[Blog Title]</a> – Short description</li>
@@ -141,7 +188,7 @@ List 3 hotel options:
 ✅ One blog per category only.
 """,
             agent=planner,
-            expected_output="HTML-formatted itinerary with verified links and blog fallback section"
+            expected_output="HTML-formatted itinerary with Google Maps URLs, addresses, and ratings from verified Google Places data"
         )
 
         return Crew(
@@ -166,9 +213,17 @@ def validate_itinerary_output(itinerary_text: str):
 
     # Find all links and validate
     links = re.findall(r'href="([^"]+)"', itinerary_text)
+    google_maps_count = 0
     for url in links:
-        if not is_valid_url(url):
+        # Prefer Google Maps URLs (they're always valid)
+        if "maps.google.com" in url or "google.com/maps" in url:
+            google_maps_count += 1
+        elif not is_valid_url(url):
             errors.append(f"❌ Broken or invalid URL: {url}")
+    
+    # Encourage use of Google Maps URLs
+    if google_maps_count == 0 and len(links) > 0:
+        errors.append("⚠️ No Google Maps URLs found. Prefer Google Places API URLs for better user experience.")
 
     # Check blog section duplicates
     if itinerary_text.count("Suggestions & Resources") > 1:

@@ -59,7 +59,17 @@ if missing_vars:
         f"Please create a .env file in the project root or backend directory with:\n"
         f"OPENAI_API_KEY=your_openai_api_key\n"
         f"SERPER_API_KEY=your_serper_api_key\n"
+        f"GOOGLE_PLACES_API_KEY=your_google_places_api_key  # Optional but recommended for verified places\n"
         f"MODEL=gpt-4o-mini  # Optional, defaults to CrewAI's default if not specified",
+        UserWarning
+    )
+
+# Warn if Google Places API key is missing (optional but recommended)
+if not os.getenv("GOOGLE_PLACES_API_KEY"):
+    import warnings
+    warnings.warn(
+        "GOOGLE_PLACES_API_KEY not set. Google Places integration will be disabled.\n"
+        "The app will fall back to web search. For better accuracy, add GOOGLE_PLACES_API_KEY to your .env file.",
         UserWarning
     )
 
@@ -70,6 +80,7 @@ if os.getenv('MODEL'):
 # Import CrewAI components
 # Note: In Docker, src/ is in the same directory as main.py (backend/)
 from src.trip_planner.crew import TripPlanner, validate_itinerary_output
+from src.trip_planner.google_places import GooglePlacesAPI
 
 # Import security config (try local first, then parent)
 try:
@@ -150,6 +161,11 @@ class UsageStats(BaseModel):
 
 class SpellCheckRequest(BaseModel):
     text: str = Field(..., min_length=1)
+
+
+class AutocompleteRequest(BaseModel):
+    input_text: str = Field(..., min_length=1, max_length=200)
+    location: Optional[str] = Field(None, description="Optional location bias (e.g., 'Michigan, USA')")
 
 
 # ============================================================================
@@ -1077,6 +1093,38 @@ async def spell_check(request: SpellCheckRequest):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Spell check failed: {str(e)}")
+
+
+@app.post("/api/autocomplete")
+async def autocomplete_destination(request: AutocompleteRequest):
+    """
+    Use Google Places Autocomplete API to help interpret vague entries or match user-input destinations exactly.
+    Helps resolve ambiguous location names to verified places.
+    """
+    google_api_key = os.getenv("GOOGLE_PLACES_API_KEY")
+    
+    if not google_api_key:
+        raise HTTPException(
+            status_code=503,
+            detail="Google Places API key not configured. Autocomplete is unavailable."
+        )
+    
+    try:
+        places_api = GooglePlacesAPI(api_key=google_api_key)
+        suggestions = places_api.autocomplete(
+            input_text=request.input_text,
+            location=request.location
+        )
+        
+        return {
+            "suggestions": suggestions,
+            "input_text": request.input_text
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error calling autocomplete API: {str(e)}"
+        )
 
 
 @app.get("/api/trips/{trip_id}/result/pdf")
