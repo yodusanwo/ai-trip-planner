@@ -18,6 +18,8 @@ Includes:
 """
 from crewai import Agent, Task, Crew
 from crewai_tools import SerperDevTool
+import re
+from collections import Counter
 
 
 class TripPlanner:
@@ -336,3 +338,92 @@ Follow the exact Day-by-Day structure already in your itinerary spec.
         )
 
         return crew
+
+
+# ------------------- Validation Function -------------------
+
+def validate_itinerary_output(itinerary_text: str):
+    """
+    Check final output for repeated restaurants, repeated activities, and inconsistent accommodations.
+    
+    Args:
+        itinerary_text: The itinerary text to validate
+        
+    Returns:
+        String with validation results (✅ if passed, ⚠️ warnings if issues found)
+    """
+    errors = []
+    
+    # Extract restaurants and activities using multiple patterns
+    restaurants = []
+    activities = []
+    
+    # Find restaurants (various patterns)
+    restaurant_patterns = [
+        r'Dinner at ([A-Za-z0-9\'’\-&., ]+)',
+        r'Lunch at ([A-Za-z0-9\'’\-&., ]+)',
+        r'Breakfast at ([A-Za-z0-9\'’\-&., ]+)',
+        r'Restaurant: ([A-Za-z0-9\'’\-&., ]+)',
+        r'Dine at ([A-Za-z0-9\'’\-&., ]+)',
+    ]
+    
+    for pattern in restaurant_patterns:
+        restaurants.extend(re.findall(pattern, itinerary_text, re.IGNORECASE))
+    
+    # Find activities (various patterns)
+    activity_patterns = [
+        r'Visit ([A-Za-z0-9\'’\-&., ]+)',
+        r'Explore ([A-Za-z0-9\'’\-&., ]+)',
+        r'Tour ([A-Za-z0-9\'’\-&., ]+)',
+        r'See ([A-Za-z0-9\'’\-&., ]+)',
+        r'Activity: ([A-Za-z0-9\'’\-&., ]+)',
+    ]
+    
+    for pattern in activity_patterns:
+        activities.extend(re.findall(pattern, itinerary_text, re.IGNORECASE))
+    
+    # Check for repeated restaurants
+    if restaurants:
+        restaurant_counts = Counter(restaurants)
+        duplicates = [item for item, count in restaurant_counts.items() if count > 1]
+        if duplicates:
+            errors.append(f"⚠️ Repeated restaurants: {', '.join(duplicates[:5])}")  # Limit to first 5
+    
+    # Check for repeated activities
+    if activities:
+        activity_counts = Counter(activities)
+        duplicates = [item for item, count in activity_counts.items() if count > 1]
+        if duplicates:
+            errors.append(f"⚠️ Repeated activities: {', '.join(duplicates[:5])}")  # Limit to first 5
+    
+    # Accommodation consistency check
+    accommodation_patterns = [
+        r'(Stay at|Accommodation:|Hotel:)\s*([^\n]+)',
+        r'Accommodation[:\s]+([^\n]+)',
+        r'Hotel[:\s]+([^\n]+)',
+    ]
+    
+    accommodations = []
+    for pattern in accommodation_patterns:
+        matches = re.findall(pattern, itinerary_text, re.IGNORECASE)
+        if matches:
+            if isinstance(matches[0], tuple):
+                accommodations.extend([acc[1].strip() if len(acc) > 1 else acc[0].strip() for acc in matches])
+            else:
+                accommodations.extend([acc.strip() for acc in matches])
+    
+    if len(accommodations) > 1:
+        unique_hotels = set(accommodations)
+        if len(unique_hotels) > 1:
+            errors.append(f"⚠️ Multiple accommodations found: {', '.join(list(unique_hotels)[:3])}")
+    
+    # Check for hotel options format (Option 1, Option 2, Option 3)
+    hotel_options = re.findall(r'Option\s*\d+[:\s]+([^\n]+)', itinerary_text, re.IGNORECASE)
+    if hotel_options:
+        if len(hotel_options) != 3:
+            errors.append(f"⚠️ {len(hotel_options)} hotel options found; expected 3 if using options format.")
+    
+    if not errors:
+        return "✅ Itinerary passed all validation checks."
+    
+    return "\n".join(errors)

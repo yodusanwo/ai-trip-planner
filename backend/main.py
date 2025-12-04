@@ -69,7 +69,7 @@ if os.getenv('MODEL'):
 
 # Import CrewAI components
 # Note: In Docker, src/ is in the same directory as main.py (backend/)
-from src.trip_planner.crew import TripPlanner
+from src.trip_planner.crew import TripPlanner, validate_itinerary_output
 
 # Import security config (try local first, then parent)
 try:
@@ -849,9 +849,22 @@ async def run_crew_async(trip_id: str, inputs: Dict[str, Any]):
                 html_content = html_content[:-3]
             html_content = html_content.strip()
             
+            # Validate itinerary output
+            try:
+                validation_result = validate_itinerary_output(html_content)
+                print(f"[{trip_id}] 📋 Validation: {validation_result}")
+                
+                # Log validation warnings/errors (but don't block the result)
+                if "⚠️" in validation_result:
+                    print(f"[{trip_id}] ⚠️  Validation warnings detected - check itinerary quality")
+                elif "✅" in validation_result:
+                    print(f"[{trip_id}] ✅ Validation passed - itinerary quality confirmed")
+            except Exception as e:
+                print(f"[{trip_id}] ⚠️  Validation error (non-blocking): {e}")
+            
             # Store result
             trip_results[trip_id] = html_content
-            print(f"[{trip_id}] Stored result ({len(html_content)} characters)")
+            print(f"[{trip_id}] ✅ Stored result ({len(html_content)} characters)")
             
             # Update progress - Complete
             trip_progress[trip_id].update({
