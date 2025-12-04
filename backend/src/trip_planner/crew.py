@@ -1,6 +1,10 @@
 from crewai import Agent, Task, Crew
 from crewai_tools import SerperDevTool
-from .google_places_tools import GooglePlacesSearchTool, GooglePlaceDetailsTool, GooglePlacesAutocompleteTool
+from .google_places_tools import (
+    google_places_search_tool,
+    google_place_details_tool,
+    google_places_autocomplete_tool
+)
 import requests
 import re
 import os
@@ -33,17 +37,23 @@ class TripPlanner:
         # Initialize Google Places API tools
         google_api_key = os.getenv("GOOGLE_PLACES_API_KEY")
         
-        # Primary tool: Google Places Search (verified places)
-        places_search_tool = GooglePlacesSearchTool(api_key=google_api_key) if google_api_key else None
-        place_details_tool = GooglePlaceDetailsTool(api_key=google_api_key) if google_api_key else None
+        # Primary tools: Google Places (verified places)
+        # These are function-based tools created with @tool decorator
+        places_tools = []
+        if google_api_key:
+            places_tools = [
+                google_places_search_tool,
+                google_place_details_tool,
+                google_places_autocomplete_tool
+            ]
         
         # Fallback tool: SerperDevTool (for blogs and general web search)
         web_search_tool = SerperDevTool()
         
         # Combine tools - prioritize Google Places, fallback to web search
-        researcher_tools = [tool for tool in [places_search_tool, place_details_tool, web_search_tool] if tool]
-        reviewer_tools = [tool for tool in [places_search_tool, place_details_tool, web_search_tool] if tool]
-        planner_tools = [tool for tool in [places_search_tool, place_details_tool, web_search_tool] if tool]
+        researcher_tools = places_tools + [web_search_tool] if places_tools else [web_search_tool]
+        reviewer_tools = places_tools + [web_search_tool] if places_tools else [web_search_tool]
+        planner_tools = places_tools + [web_search_tool] if places_tools else [web_search_tool]
 
         # ---------------------
         # Agents
