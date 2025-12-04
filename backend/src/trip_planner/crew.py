@@ -3,6 +3,7 @@ from crewai_tools import SerperDevTool
 import re
 from collections import Counter
 
+
 class TripPlanner:
     def __init__(self):
         self._crew = None
@@ -15,40 +16,36 @@ class TripPlanner:
     def _create_crew(self) -> Crew:
         search_tool = SerperDevTool()
 
-        # ==========================
-        # AGENTS
-        # ==========================
+        # ------------------ AGENTS ------------------
 
         researcher = Agent(
             role="Precision Travel Researcher",
-            goal="Provide only verified, real-world travel data using exact matches from official websites and Google Maps. No creativity, no filler, no guessing.",
-            backstory="You are an accuracy-first researcher. You verify everything. You never invent restaurants, addresses, activities, or locations. You only use real-world validated sources.",
+            goal="Research real-world data for a specific travel style and destination. Use only verifiable sources (Google Maps, official websites, and curated blogs).",
+            backstory="You are a research expert focused on accuracy. You never guess or fabricate. You always verify restaurants, attractions, and hotels. If an item cannot be found, you provide a blog link instead.",
             tools=[search_tool],
             verbose=True,
             allow_delegation=False,
         )
 
         reviewer = Agent(
-            role="Travel Verification Auditor",
-            goal="Audit every detail for correctness, real-world validity, address accuracy, and compliance with all anti-hallucination rules. Reject anything unverifiable.",
-            backstory="You act as the final line of defense. You eliminate ALL hallucinations, wrong addresses, generic suggestions, and unverifiable items.",
+            role="Travel Data Auditor",
+            goal="Validate and clean the research data for accuracy. Remove hallucinations, invented names, or unverifiable items. Ensure at least 3 hotel options exist.",
+            backstory="You ensure that the travel data is accurate, properly sourced, and safe for use. You reject generic placeholders and double-check all URLs, addresses, and business names.",
             tools=[search_tool],
             verbose=True,
             allow_delegation=False,
         )
 
         planner = Agent(
-            role="Evidence-Based Itinerary Planner",
-            goal="Transform validated research into a structured, realistic, HTML-formatted itinerary. Use only verified locations. No creativity, no rewriting, no invented content.",
-            backstory="You build accurate, professional itineraries using ONLY the reviewed data. You NEVER invent any names or content. If data is missing, you say: 'Free time or explore nearby options.' If blog links are provided, you format them professionally as suggestions.",
+            role="HTML Itinerary Builder",
+            goal="Turn validated research into a clean HTML travel itinerary. Format consistently. Use real names only. If any items are missing, insert a blog fallback based on travel style at the bottom of the day.",
+            backstory="You build accurate itineraries with verified names only. When something is missing, you insert ONE blog fallback per day that matches the travel style. You never reuse blogs across days or categories.",
             tools=[search_tool],
             verbose=True,
             allow_delegation=False,
         )
 
-        # ==========================
-        # TASKS
-        # ==========================
+        # ------------------ TASKS ------------------
 
         research_task = Task(
             description="""
@@ -58,109 +55,79 @@ Budget: {budget}
 Travel Style: {travel_style}
 Special Requirements: {special_requirements}
 
-ZERO-HALLUCINATION RULE:
-- Do NOT invent restaurants or activities.
-- Use ONLY verified businesses on Google Maps or official websites.
-- If something is missing, leave it out.
+🔒 HALLUCINATION BLOCKING:
+- Do NOT invent names
+- Only use businesses with verified presence in the destination (Google Maps, official sites)
+- Use copy-paste address accuracy
+- Never reuse results from different cities
 
-RESTAURANT & ACTIVITY VERIFICATION:
-- Must appear in Google Maps or on an official website
-- Must have real, current reviews (last 24 months)
-- Must match the destination city exactly
-- MUST include exact copied address
+🏨 ACCOMMODATION RULES:
+- You MUST provide 3 hotel/accommodation options
+- Each must include:
+  - Name
+  - Price range per night
+  - Category (budget/moderate/luxury)
+  - Neighborhood
+  - Google Maps or official URL
 
-ACCOMMODATION:
-- Research and include 3 hotel/accommodation options with:
-  - Name, category, exact address, price/night, Google Maps link
-  - Do not suggest fewer than 3
+📚 BLOG FALLBACK RULES:
+If you cannot verify specific restaurants, activities, or attractions:
+→ Search for a curated blog or article matching the {travel_style}
 
-BLOG LINK ALTERNATIVES:
-If you cannot find a specific restaurant, activity, or bar:
-→ Include a high-quality curated article link instead:
-  - Title, short description, and URL
-  - From trusted sources: Eater, TimeOut, Lonely Planet, Conde Nast, etc.
+CATEGORY MAPPING:
+- Adventure → “Outdoor Adventure Activities in {destination}”
+- Relaxation → “Best Spas and Wellness in {destination}”
+- Cultural → “Must-See Museums & Historic Spots in {destination}”
+- Food & Dining → “Top Restaurants in {destination}”
+- Nature & Outdoors → “Best Nature Trails and Parks in {destination}”
+- Nightlife → “Top Bars, Clubs, and Nightlife in {destination}”
+- Family-Friendly → “Things to Do with Kids in {destination}”
 
-DISALLOWED:
-- Artistic mashups
-- Generic placeholders (“local bistro,” “historic museum”)
-- Anything unverifiable
+✅ Each blog must include:
+- Blog title
+- Direct link
+- Source (e.g., Eater, TimeOut, Lonely Planet)
+- 1-line summary
 """,
             agent=researcher,
-            expected_output="Verified research with zero hallucinations and 3 hotel options (plus optional blog links)."
+            expected_output="Verified data with 3 hotels and curated blog links if needed."
         )
 
         review_task = Task(
             description="""
-Review the research for: {destination}
+Audit all research for: {destination}
 
-RE-VERIFICATION:
-- Check that all addresses, names, and links match Google Maps or the official website.
-- Validate each restaurant and activity with a fresh Google search.
-- Remove any unverified or mislocated entries.
+☑️ You MUST:
+- Verify all restaurants/activities exist and are in the correct city
+- Ensure addresses match sources exactly
+- Confirm blogs are real, recent, and match the {travel_style}
 
-ACCOMMODATION:
-- Ensure 3 valid hotel options are included.
-- Each must have valid pricing, link, and matching address.
+❌ REJECT:
+- Fake or invented names
+- Mislocated businesses
+- Blogs that don’t match the category (e.g., family blog used for nightlife)
 
-REJECT ANY:
-- Invented names
-- Address mismatches
-- Alternate-city locations
-- Generic or placeholder text
-- Venues with no official presence
-
-ALLOWED:
-- Curated articles/blog links for restaurants or nightlife if clearly sourced
-
-Output: Cleaned research with 3 verified hotel options and zero hallucinations.
+✅ Ensure exactly 3 valid accommodations are present
 """,
             agent=reviewer,
-            expected_output="Cleaned research with 3 verified hotel options and zero hallucinations."
+            expected_output="Cleaned, verified research with 3 hotels and valid blog fallback links"
         )
 
         planning_task = Task(
             description="""
-Create a detailed {duration}-day itinerary using ONLY the validated research.
+Create a structured, fully HTML-formatted {duration}-day itinerary for {destination} using validated research.
 
-ACCOMMODATION:
-- Provide exactly THREE hotel options at the top.
-- Use this format:
-  <h2>Accommodation Options</h2>
-  <ul>
-    <li><strong>Option 1: [Hotel Name]</strong> - [Description with pricing]</li>
-    ...
-  </ul>
+🏨 HOTEL SECTION:
+- List 3 hotel options at top
+- Include name, price, category, location
+- Use bullet list
 
-NO-INVENTION RULE:
-- Use ONLY the reviewed research.
-- NEVER make up restaurants, activities, or descriptions.
-- Do NOT fill missing data with guesses.
-
-FALLBACK SMART BLOG LINK RULE:
-If a specific restaurant, bar, activity, or shop is not available:
-→ DO NOT use "Dinner at local restaurant" or similar filler.
-→ DO NOT hallucinate names.
-→ INSTEAD, insert a curated blog or guide article link like:
-
-<p><strong>[Meal or Activity Type]:</strong> 
-<a href="https://example.com/top-[activity_type]-[destination]" target="_blank" rel="noopener noreferrer">
-Top [activity_type] in [destination]
-</a></p>
-
-Use user-supplied values for placeholders (replace brackets with actual values):
-- [destination] = city
-- [travel_style] = style of travel (romantic, foodie, solo, etc.)
-- [activity_type] = restaurants, nightlife, attractions, etc.
-
-Sources allowed:
-- Eater, TimeOut, Conde Nast Traveler, Thrillist, Lonely Planet, Infatuation, Michelin, TripAdvisor
-- Official tourism websites
-
-FORMAT FOR EACH DAY:
+📅 DAILY STRUCTURE:
+Each day must follow this format:
 <h2>Day X: [Title]</h2>
 <p><strong>Morning:</strong> [Specific activity]</p>
 <p><strong>Afternoon:</strong> [Specific activity]</p>
-<p><strong>Evening:</strong> [Specific restaurant or blog link]</p>
+<p><strong>Evening:</strong> [Specific activity or restaurant]</p>
 <p><strong>Estimated Costs:</strong></p>
 <ul>
   <li>Transportation: $X</li>
@@ -169,14 +136,21 @@ FORMAT FOR EACH DAY:
   <li><strong>Total: $X</strong></li>
 </ul>
 
-DEPARTURE DAY:
-- Must include morning and afternoon activities (not just checkout)
-- Use real places or blog link fallback if research is missing
+🧠 IF MISSING DATA (NO VALID RESTAURANT OR ACTIVITY):
+→ INSERT ONE blog link at the end of the day:
+<p><strong>Suggestions:</strong> 
+<a href="{blog_url}" target="_blank" rel="noopener noreferrer">{blog_title}</a></p>
 
-STYLE:
-- Output in full HTML
-- Include this <style> block in the <head>:
+The blog MUST match {travel_style} using this mapping:
+- Adventure → Activities blog
+- Food & Dining → Restaurant blog
+- Nightlife → Bars & clubs blog
+- Family-Friendly → Kid-friendly attractions blog
 
+DO NOT repeat the same blog across multiple days.
+
+🎨 BRAND STYLE (HTML HEAD):
+Include:
 <style>
   body { font-family: Arial; color: #3D3D3D; }
   h1 { color: #0F0F0F; }
@@ -185,13 +159,9 @@ STYLE:
   a { color: #2C7EF4; font-weight: 600; text-decoration: none; }
   a:hover { text-decoration: underline; }
 </style>
-
-HYPERLINK FORMAT:
-- Every location name or blog link must be a hyperlink:
-  <a href="URL" target="_blank" rel="noopener noreferrer">Title</a>
 """,
             agent=planner,
-            expected_output="Fully formatted HTML itinerary with verified data, blog links if needed, and 3 hotel options."
+            expected_output="HTML-formatted itinerary with one blog fallback per day if needed."
         )
 
         return Crew(
@@ -201,46 +171,24 @@ HYPERLINK FORMAT:
             verbose=True,
         )
 
-# ==========================
-# VALIDATION FUNCTION (unchanged but optional to update)
-# ==========================
 
-def validate_itinerary_output(itinerary_text: str):
+# ------------------ VALIDATION FUNCTION ------------------
+
+def validate_itinerary_output(itinerary_text: str, travel_style: str = ""):
     errors = []
 
-    # Check for known hallucinated or filler names
-    hallucinated_entries = [
-        "Civilians", "1800 Chicago", "Sample Restaurant",
-        "Dinner at Local Restaurant", "Local Bistro"
-    ]
-    for entry in hallucinated_entries:
-        if entry.lower() in itinerary_text.lower():
-            errors.append(f"❌ Suspected hallucinated/filler entry: '{entry}'")
+    # Blog reuse detection
+    blog_links = re.findall(r'href="([^"]+)"', itinerary_text)
+    if len(set(blog_links)) < len(blog_links) // 2:
+        errors.append("⚠️ Blog links are reused excessively across different days.")
 
-    # Check for duplicate restaurants
-    restaurant_patterns = [
-        r'Dinner at ([A-Za-z0-9\'’\-&., ]+)',
-        r'Lunch at ([A-Za-z0-9\'’\-&., ]+)',
-        r'Breakfast at ([A-Za-z0-9\'’\-&., ]+)',
-    ]
-    restaurants = []
-    for pattern in restaurant_patterns:
-        restaurants += re.findall(pattern, itinerary_text, re.IGNORECASE)
-    dupes = [item for item, count in Counter(restaurants).items() if count > 1]
-    if dupes:
-        errors.append(f"⚠️ Repeated restaurants: {', '.join(dupes[:5])}")
+    # Style mismatch detection
+    if travel_style and "family" in "".join(blog_links).lower() and "food" in travel_style.lower():
+        errors.append("❌ A 'Family' blog link was incorrectly used for a Food & Dining trip.")
 
-    # Check hotel option count
-    hotel_options = re.findall(r'Option \d: ([^\n]+)', itinerary_text, re.IGNORECASE)
+    # Check hotel count
+    hotel_options = re.findall(r'Option \d: ([^\n<]+)', itinerary_text)
     if len(hotel_options) != 3:
         errors.append(f"⚠️ Expected 3 hotel options, found {len(hotel_options)}.")
-
-    # Check for generic fallback phrases
-    fallback_phrases = [
-        "Dinner at a local restaurant", "Free time", "Sample Restaurant"
-    ]
-    for phrase in fallback_phrases:
-        if re.search(phrase, itinerary_text, re.IGNORECASE):
-            errors.append(f"⚠️ Generic fallback detected: '{phrase}'")
 
     return "✅ Itinerary passed all validation checks." if not errors else "\n".join(errors)
