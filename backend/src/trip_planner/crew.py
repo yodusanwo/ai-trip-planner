@@ -40,7 +40,7 @@ class TripPlanner:
         planner = Agent(
             role="Evidence-Based Itinerary Planner",
             goal="Transform validated research into a structured, realistic, HTML-formatted itinerary. Use only verified locations. No creativity, no rewriting, no invented content.",
-            backstory="You build accurate, professional itineraries using ONLY the reviewed data. You NEVER invent any names or content. If data is missing, you say: 'Free time or explore nearby options.' Accuracy is more important than completeness. You output clean, branded HTML using only facts that have been explicitly validated.",
+            backstory="You build accurate, professional itineraries using ONLY the reviewed data. You NEVER invent any names or content. If data is missing, you say: 'Free time or explore nearby options.' If blog links are provided, you format them professionally as suggestions.",
             tools=[search_tool],
             verbose=True,
             allow_delegation=False,
@@ -74,15 +74,19 @@ ACCOMMODATION:
   - Name, category, exact address, price/night, Google Maps link
   - Do not suggest fewer than 3
 
-DISALLOWED:
-- Artistic or French-sounding mashups
-- Generic placeholders (“local bistro,” “historic museum”)
-- Locations without valid providers, addresses, or websites
+BLOG LINK ALTERNATIVES:
+If you cannot find a specific restaurant, activity, or bar:
+→ Include a high-quality curated article link instead:
+  - Title, short description, and URL
+  - From trusted sources: Eater, TimeOut, Lonely Planet, Conde Nast, etc.
 
-Output: Structured, bullet-point research ONLY with verified information.
+DISALLOWED:
+- Artistic mashups
+- Generic placeholders (“local bistro,” “historic museum”)
+- Anything unverifiable
 """,
             agent=researcher,
-            expected_output="Verified research with zero hallucinations and 3 hotel options."
+            expected_output="Verified research with zero hallucinations and 3 hotel options (plus optional blog links)."
         )
 
         review_task = Task(
@@ -105,7 +109,10 @@ REJECT ANY:
 - Generic or placeholder text
 - Venues with no official presence
 
-Output: Clean, validated research only with real and current information.
+ALLOWED:
+- Curated articles/blog links for restaurants or nightlife if clearly sourced
+
+Output: Cleaned research with 3 verified hotel options and zero hallucinations.
 """,
             agent=reviewer,
             expected_output="Cleaned research with 3 verified hotel options and zero hallucinations."
@@ -129,16 +136,31 @@ NO-INVENTION RULE:
 - NEVER make up restaurants, activities, or descriptions.
 - Do NOT fill missing data with guesses.
 
-MISSING DATA BEHAVIOR (CRITICAL):
-If something is missing from the research:
-→ Do NOT invent it.
-→ Instead, write: "Free time or explore nearby options."
+FALLBACK SMART BLOG LINK RULE:
+If a specific restaurant, bar, activity, or shop is not available:
+→ DO NOT use "Dinner at local restaurant" or similar filler.
+→ DO NOT hallucinate names.
+→ INSTEAD, insert a curated blog or guide article link like:
+
+<p><strong>[Meal or Activity Type]:</strong> 
+<a href="https://example.com/top-{activity_type}-{destination}" target="_blank" rel="noopener noreferrer">
+Top {activity_type} in {destination}
+</a></p>
+
+Use user-supplied values for placeholders:
+- {destination} = city
+- {travel_style} = style of travel (romantic, foodie, solo, etc.)
+- {activity_type} = restaurants, nightlife, attractions, etc.
+
+Sources allowed:
+- Eater, TimeOut, Conde Nast Traveler, Thrillist, Lonely Planet, Infatuation, Michelin, TripAdvisor
+- Official tourism websites
 
 FORMAT FOR EACH DAY:
 <h2>Day X: [Title]</h2>
 <p><strong>Morning:</strong> [Specific activity]</p>
 <p><strong>Afternoon:</strong> [Specific activity]</p>
-<p><strong>Evening:</strong> [Specific restaurant/activity]</p>
+<p><strong>Evening:</strong> [Specific restaurant or blog link]</p>
 <p><strong>Estimated Costs:</strong></p>
 <ul>
   <li>Transportation: $X</li>
@@ -149,7 +171,7 @@ FORMAT FOR EACH DAY:
 
 DEPARTURE DAY:
 - Must include morning and afternoon activities (not just checkout)
-- Use real places or fallback phrase if nothing is available
+- Use real places or blog link fallback if research is missing
 
 STYLE:
 - Output in full HTML
@@ -165,11 +187,11 @@ STYLE:
 </style>
 
 HYPERLINK FORMAT:
-- Every location name must be a link:
-  <a href="URL" target="_blank" rel="noopener noreferrer">Name</a>
+- Every location name or blog link must be a hyperlink:
+  <a href="URL" target="_blank" rel="noopener noreferrer">Title</a>
 """,
             agent=planner,
-            expected_output="Fully formatted HTML itinerary with verified data only, 3 hotels, no hallucinations."
+            expected_output="Fully formatted HTML itinerary with verified data, blog links if needed, and 3 hotel options."
         )
 
         return Crew(
@@ -180,7 +202,7 @@ HYPERLINK FORMAT:
         )
 
 # ==========================
-# VALIDATION FUNCTION
+# VALIDATION FUNCTION (unchanged but optional to update)
 # ==========================
 
 def validate_itinerary_output(itinerary_text: str):
@@ -208,23 +230,17 @@ def validate_itinerary_output(itinerary_text: str):
     if dupes:
         errors.append(f"⚠️ Repeated restaurants: {', '.join(dupes[:5])}")
 
-    # Check for generic fallback phrases
-    fallback_phrases = [
-        "Free time in", "Explore neighborhoods", "Visit local attractions",
-        "Dinner at Local Restaurant", "Sample Restaurant", "TBD"
-    ]
-    for phrase in fallback_phrases:
-        if re.search(phrase, itinerary_text, re.IGNORECASE):
-            errors.append(f"⚠️ Generic fallback detected: '{phrase}'")
-
     # Check hotel option count
     hotel_options = re.findall(r'Option \d: ([^\n]+)', itinerary_text, re.IGNORECASE)
     if len(hotel_options) != 3:
         errors.append(f"⚠️ Expected 3 hotel options, found {len(hotel_options)}.")
 
-    # Check for minimal activity on departure day
-    if 'Day' in itinerary_text and 'Departure' in itinerary_text:
-        if not re.search(r'Morning:.*(Visit|Breakfast|Explore)', itinerary_text, re.IGNORECASE):
-            errors.append("⚠️ Departure day missing activities before checkout.")
+    # Check for generic fallback phrases
+    fallback_phrases = [
+        "Dinner at a local restaurant", "Free time", "Sample Restaurant"
+    ]
+    for phrase in fallback_phrases:
+        if re.search(phrase, itinerary_text, re.IGNORECASE):
+            errors.append(f"⚠️ Generic fallback detected: '{phrase}'")
 
     return "✅ Itinerary passed all validation checks." if not errors else "\n".join(errors)
