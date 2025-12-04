@@ -143,14 +143,14 @@ If a specific restaurant, bar, activity, or shop is not available:
 → INSTEAD, insert a curated blog or guide article link like:
 
 <p><strong>[Meal or Activity Type]:</strong> 
-<a href="https://example.com/top-{activity_type}-{destination}" target="_blank" rel="noopener noreferrer">
-Top {activity_type} in {destination}
+<a href="https://example.com/top-[activity_type]-[destination]" target="_blank" rel="noopener noreferrer">
+Top [activity_type] in [destination]
 </a></p>
 
-Use user-supplied values for placeholders:
-- {destination} = city
-- {travel_style} = style of travel (romantic, foodie, solo, etc.)
-- {activity_type} = restaurants, nightlife, attractions, etc.
+Use user-supplied values for placeholders (replace brackets with actual values):
+- [destination] = city
+- [travel_style] = style of travel (romantic, foodie, solo, etc.)
+- [activity_type] = restaurants, nightlife, attractions, etc.
 
 Sources allowed:
 - Eater, TimeOut, Conde Nast Traveler, Thrillist, Lonely Planet, Infatuation, Michelin, TripAdvisor
