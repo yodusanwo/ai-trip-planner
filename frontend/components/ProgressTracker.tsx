@@ -153,6 +153,14 @@ export default function ProgressTracker({
     const fetchInitialProgress = async (): Promise<ProgressData | null> => {
       try {
         const response = await fetch(`${apiUrl}/api/trips/${tripId}/progress`);
+        if (response.status === 404) {
+          // Trip not found - likely backend restarted or trip expired
+          setError("Trip not found. The trip may have expired or the server was restarted. Please start a new trip.");
+          if (eventSourceRef.current) {
+            eventSourceRef.current.close();
+          }
+          return null;
+        }
         if (response.ok) {
           const data: ProgressData = await response.json();
           setProgress(data);
@@ -259,6 +267,15 @@ export default function ProgressTracker({
     const interval = setInterval(async () => {
       try {
         const response = await fetch(`${apiUrl}/api/trips/${tripId}/progress`);
+        if (response.status === 404) {
+          // Trip not found - stop polling
+          clearInterval(interval);
+          setError("Trip not found. The trip may have expired or the server was restarted. Please start a new trip.");
+          if (eventSourceRef.current) {
+            eventSourceRef.current.close();
+          }
+          return;
+        }
         if (response.ok) {
           const data: ProgressData = await response.json();
 
