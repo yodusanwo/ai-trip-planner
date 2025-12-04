@@ -7,11 +7,13 @@ from collections import Counter
 # -----------------------
 # Utility: URL Validator
 # -----------------------
-
 def is_valid_url(url):
     try:
         response = requests.head(url, allow_redirects=True, timeout=5)
-        return response.status_code == 200 and 'text/html' in response.headers.get('Content-Type', '')
+        return (
+            response.status_code == 200 and
+            'text/html' in response.headers.get('Content-Type', '')
+        )
     except requests.RequestException:
         return False
 
@@ -31,29 +33,28 @@ class TripPlanner:
         # ---------------------
         # Agents
         # ---------------------
-
         researcher = Agent(
             role="Verified Travel Researcher",
-            goal="Gather only real, verified travel listings. No fake names or placeholders. Use blog links only when necessary.",
-            backstory="You are a no-hallucination researcher. You verify every listing using trusted sources. If something can't be confirmed, you find a matching travel blog.",
+            goal="Gather real, verified travel listings. No placeholder names. Include fallback blogs if needed.",
+            backstory="You find reliable listings for restaurants, attractions, and hotels. If nothing verifiable is found, return a relevant travel blog article instead.",
             tools=[search_tool],
             verbose=True,
             allow_delegation=False,
         )
 
         reviewer = Agent(
-            role="Travel Quality Auditor",
-            goal="Audit the research for correctness, validity, and clean blog category alignment. Remove hallucinated names like 'Detroit Market' and check all URLs.",
-            backstory="You are the last line of defense. You catch fake places, broken links, and blog mismatches. You allow only factual listings.",
+            role="Travel Accuracy Auditor",
+            goal="Check for hallucinations, generic names, and broken links. Verify all data. Replace vague entries with verified blogs if needed.",
+            backstory="You audit listings for accuracy, validate URLs, and ensure correct formatting. You eliminate fake names like 'Detroit Market'.",
             tools=[search_tool],
             verbose=True,
             allow_delegation=False,
         )
 
         planner = Agent(
-            role="Itinerary Generator",
-            goal="Create a structured, clean HTML itinerary using verified entries. Move all blog fallback links to the end, and verify that links are working before including them.",
-            backstory="You turn research into a clean itinerary. You validate all blog links and use one per category only if valid and useful.",
+            role="Clean Itinerary Formatter",
+            goal="Generate a structured HTML itinerary using verified listings and blog fallbacks when needed. Ensure all names are linked and real.",
+            backstory="You turn research into clean itineraries. If a location can't be verified, link to a helpful blog instead and place all blogs in a 'Suggestions' section at the end.",
             tools=[search_tool],
             verbose=True,
             allow_delegation=False,
@@ -62,88 +63,77 @@ class TripPlanner:
         # ---------------------
         # Tasks
         # ---------------------
-
         research_task = Task(
             description="""
-Research: {destination}
-Travel Style: {travel_style}
-Duration: {duration} days
-Budget: {budget}
-Special Requirements: {special_requirements}
+Research {destination} for a {duration}-day {travel_style}-style trip.
 
-✅ Use only verified listings from Google Maps or official sources.
+✅ Find real-world listings:
+- Restaurants, attractions, and 3 hotel options
+- Copy names and links exactly from Maps or official websites
 
-❌ Do NOT use made-up names like 'Detroit Market', 'Local eatery', etc.
+❌ DO NOT include:
+- Placeholders like 'Detroit Market', 'local café', or 'downtown eats'
+- Generic suggestions
 
-🏨 Provide 3 valid hotels with full names, price range, and address.
+📚 If nothing valid is found in a category, find a relevant travel blog:
+- Title, URL, short summary
+- One blog per category (e.g., Top Family Attractions in Detroit)
 
-📚 If you cannot find enough restaurants, attractions, or nightlife:
-→ Provide a blog article from a trusted travel source.
-
-Each blog must be:
-- A full article (not a category page)
-- Relevant to one of the following:
-  Adventure, Relaxation, Cultural, Family-Friendly, Food & Dining, Nature & Outdoors, Nightlife
-- Include: Title, URL, short summary
+⚠️ Blog must be:
+- A full article, not a homepage or directory
+- Valid URL (status 200, HTML page)
 """,
             agent=researcher,
-            expected_output="Verified listings + fallback blog links if needed"
+            expected_output="Verified listings + fallback blog links (if needed)"
         )
 
         review_task = Task(
             description="""
-Review the research results for:
-- Broken or invalid URLs (must return HTTP 200)
-- Made-up place names like 'Detroit Market', 'Local eatery'
-- Blog links that don't match their assigned category
-- Ensure 3 hotel options are valid
+Validate listings for: {destination}
 
-Reject:
-- Homepages (like /food or /restaurants)
-- Blogs that link to top-level directories
-- Fake sounding names
+1. Check for invalid names like 'local eatery', 'Detroit Market'
+2. Make sure all URLs are valid (status 200 + content-type: HTML)
+3. Ensure 3 hotels are included
+4. Limit blogs to 1 per category
+
+If any blog or place fails validation → remove or replace with a valid one.
 """,
             agent=reviewer,
-            expected_output="Cleaned, audited data with validated URLs and hotels"
+            expected_output="Cleaned research with valid links and no hallucinations"
         )
 
         planning_task = Task(
             description="""
-Create a {duration}-day itinerary for {destination}.
+Using verified research only, create a {duration}-day itinerary for {destination}.
 
-🏨 Start with: <h2>Accommodation Options</h2>
-Include 3 hotels, with:
+🏨 Section: <h2>Accommodation Options</h2>
+List 3 hotel options:
 - Name
 - Price range
 - Location
-- Hyperlink (verified)
+- Hyperlink as: <a href="..." target="_blank" rel="noopener noreferrer">Book Here</a>
 
-📅 For each day, use:
-<h2>Day X: [Title]</h2>
-<p><strong>Morning:</strong> Specific Activity</p>
-<p><strong>Afternoon:</strong> Specific Activity</p>
-<p><strong>Evening:</strong> Specific Restaurant or Activity</p>
+📅 Daily Structure:
+<h2>Day X: [Theme]</h2>
+<p><strong>Morning:</strong> Visit <a href="..." target="_blank">[Place]</a></p>
+<p><strong>Afternoon:</strong> Explore <a href="..." target="_blank">[Attraction]</a></p>
+<p><strong>Evening:</strong> Dinner at <a href="..." target="_blank">[Restaurant]</a></p>
 
-⚠️ Do NOT include vague names like:
-- 'Detroit Market'
-- 'Local eatery'
-- 'Shopping district'
-- 'Downtown cafe'
+⚠️ Do NOT include:
+- Generic names like "local bistro", "Detroit Market"
+- Unlinked names
+- Broken blog or business URLs
 
-📚 If specific restaurants/activities are missing:
-→ At the end, include:
-
+📚 Fallbacks (if needed):
 <h2>Suggestions & Resources</h2>
 <ul>
-  <li><strong>Category:</strong> <a href="VALID_URL" target="_blank" rel="noopener noreferrer">Blog Title</a> – Short summary</li>
+  <li><strong>[Category]:</strong> <a href="VALID_URL" target="_blank" rel="noopener noreferrer">[Blog Title]</a> – Short description</li>
 </ul>
 
-🎯 Only ONE blog per category.
-
-✅ Use blog ONLY if valid (HTTP 200, HTML, travel source).
+✅ One blog per category only.
 """,
             agent=planner,
-            expected_output="Formatted HTML itinerary with blog links in final section only"
+            expected_output="HTML-formatted itinerary with verified links and blog fallback section"
         )
 
         return Crew(
@@ -155,30 +145,29 @@ Include 3 hotels, with:
 
 
 # ---------------------
-# Validator
+# Validator Function
 # ---------------------
-
 def validate_itinerary_output(itinerary_text: str):
     errors = []
 
-    # 1. Check for fake sounding names
-    invalid_phrases = ['Detroit Market', 'local eatery', 'local bistro', 'shopping area']
-    for phrase in invalid_phrases:
+    # Invalid place phrases
+    forbidden = ['Detroit Market', 'local eatery', 'local bistro', 'downtown market']
+    for phrase in forbidden:
         if phrase.lower() in itinerary_text.lower():
             errors.append(f"❌ Invalid phrase found: '{phrase}'")
 
-    # 2. Check blog links
-    blog_links = re.findall(r'<a href="([^"]+)"[^>]*>([^<]+)</a>', itinerary_text)
-    for url, title in blog_links:
+    # Find all links and validate
+    links = re.findall(r'href="([^"]+)"', itinerary_text)
+    for url in links:
         if not is_valid_url(url):
-            errors.append(f"❌ Blog URL not valid or reachable: {url}")
+            errors.append(f"❌ Broken or invalid URL: {url}")
 
-    # 3. Ensure blog section appears only once
+    # Check blog section duplicates
     if itinerary_text.count("Suggestions & Resources") > 1:
         errors.append("⚠️ Suggestions section appears more than once")
 
-    # 4. Check for hotel options
-    hotel_count = len(re.findall(r'Option \d: ', itinerary_text))
+    # Hotel count check
+    hotel_count = len(re.findall(r'Option \d:', itinerary_text))
     if hotel_count != 3:
         errors.append(f"⚠️ Found {hotel_count} hotel options. Expected 3.")
 
