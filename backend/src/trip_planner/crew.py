@@ -75,13 +75,13 @@ If you cannot verify specific restaurants, activities, or attractions:
 → Search for a curated blog or article matching the {travel_style}
 
 CATEGORY MAPPING:
-- Adventure → “Outdoor Adventure Activities in {destination}”
-- Relaxation → “Best Spas and Wellness in {destination}”
-- Cultural → “Must-See Museums & Historic Spots in {destination}”
-- Food & Dining → “Top Restaurants in {destination}”
-- Nature & Outdoors → “Best Nature Trails and Parks in {destination}”
-- Nightlife → “Top Bars, Clubs, and Nightlife in {destination}”
-- Family-Friendly → “Things to Do with Kids in {destination}”
+- Adventure → "Outdoor Adventure Activities in [destination]"
+- Relaxation → "Best Spas and Wellness in [destination]"
+- Cultural → "Must-See Museums & Historic Spots in [destination]"
+- Food & Dining → "Top Restaurants in [destination]"
+- Nature & Outdoors → "Best Nature Trails and Parks in [destination]"
+- Nightlife → "Top Bars, Clubs, and Nightlife in [destination]"
+- Family-Friendly → "Things to Do with Kids in [destination]"
 
 ✅ Each blog must include:
 - Blog title
@@ -139,7 +139,7 @@ Each day must follow this format:
 🧠 IF MISSING DATA (NO VALID RESTAURANT OR ACTIVITY):
 → INSERT ONE blog link at the end of the day:
 <p><strong>Suggestions:</strong> 
-<a href="{blog_url}" target="_blank" rel="noopener noreferrer">{blog_title}</a></p>
+<a href="[blog_url]" target="_blank" rel="noopener noreferrer">[blog_title]</a></p>
 
 The blog MUST match {travel_style} using this mapping:
 - Adventure → Activities blog
