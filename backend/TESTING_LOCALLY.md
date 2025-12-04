@@ -4,14 +4,23 @@ This guide helps you test URL generation and the full CrewAI flow locally withou
 
 ## Prerequisites
 
-1. Make sure you have all environment variables set in `backend/.env`:
+1. **Activate the virtual environment** (recommended):
+   ```bash
+   cd backend
+   source venv/bin/activate  # On macOS/Linux
+   # OR
+   venv\Scripts\activate     # On Windows
+   ```
+   
+   You should see `(venv)` in your terminal prompt when activated.
+
+2. Make sure you have all environment variables set in `backend/.env`:
    - `GOOGLE_PLACES_API_KEY`
    - `OPENAI_API_KEY`
    - `SERPER_API_KEY`
 
-2. Install dependencies:
+3. Install dependencies (if not already installed):
    ```bash
-   cd backend
    pip install -r requirements.txt
    ```
 
@@ -93,15 +102,27 @@ After running tests locally, compare with Railway logs:
 ## Quick Test Commands
 
 ```bash
-# Test URL generation only (fast, ~30 seconds)
-cd backend && python test_urls.py
+# 1. Navigate to backend directory
+cd backend
 
-# Test full flow (slower, ~5-10 minutes)
-cd backend && python test_local_crew.py
+# 2. Activate virtual environment
+source venv/bin/activate  # macOS/Linux
+# OR
+venv\Scripts\activate     # Windows
 
-# View the generated HTML
-open backend/test_output.html
+# 3. Test URL generation only (fast, ~30 seconds)
+python test_urls.py
+
+# 4. Test full flow (slower, ~5-10 minutes)
+python test_local_crew.py
+
+# 5. View the generated HTML
+open test_output.html  # macOS
+# OR
+start test_output.html  # Windows
 ```
+
+**Note:** If you don't activate the virtual environment, make sure all dependencies are installed globally, or the scripts may fail with import errors.
 
 ## Expected Output
 
