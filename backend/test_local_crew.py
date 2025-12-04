@@ -106,8 +106,8 @@ def test_crew_execution():
     print()
     
     try:
-        # Run the crew
-        result = crew.run(inputs=inputs)
+        # Run the crew (CrewAI uses kickoff() method)
+        result = crew.kickoff(inputs=inputs)
         
         # Extract HTML from result
         html_content = None
