@@ -124,25 +124,26 @@ class GooglePlacesAPI:
             if "opening_hours" in result:
                 opening_hours = result["opening_hours"].get("weekday_text", [])
             
-            # Construct proper Google Maps place URL instead of using CID format
+            # Construct proper Google Maps URL using Place ID
             # The API returns CID URLs (maps.google.com/?cid=...) which are unreliable
-            # We'll construct a proper place URL using place_id
+            # For all place types (businesses, parks, monuments, attractions), use the search format
+            # with query_place_id, which is the most reliable method per Google's documentation
             place_name = result.get("name", "")
             formatted_address = result.get("formatted_address", "")
             
-            # Build proper place URL - use place_id query parameter for reliability
-            # Format: https://www.google.com/maps/place/?q=place_id:{place_id}
-            # This format is guaranteed to work and redirects to the proper place page
+            # Use the search format with query_place_id - works for all place types
+            # Format: https://www.google.com/maps/search/?api=1&query=PlaceName&query_place_id=PLACE_ID
+            # This format is recommended by Google for linking to places using Place IDs
             from urllib.parse import quote_plus
             
-            if place_name and formatted_address:
-                # Construct URL with place name in path for better UX
-                # Format: https://www.google.com/maps/place/{name}+{address}/?q=place_id:{place_id}
-                place_query = f"{place_name}, {formatted_address}"
-                proper_maps_url = f"https://www.google.com/maps/place/{quote_plus(place_query)}/?q=place_id:{place_id}"
+            if place_name:
+                # Use search format with place name and query_place_id
+                # This works reliably for businesses, parks, monuments, attractions, islands, etc.
+                encoded_name = quote_plus(place_name)
+                proper_maps_url = f"https://www.google.com/maps/search/?api=1&query={encoded_name}&query_place_id={place_id}"
             else:
-                # Fallback to simple format if name/address missing
-                proper_maps_url = f"https://www.google.com/maps/place/?q=place_id:{place_id}"
+                # Fallback if name is missing - still use query_place_id
+                proper_maps_url = f"https://www.google.com/maps/search/?api=1&query_place_id={place_id}"
             
             return PlaceDetails(
                 name=place_name,
