@@ -865,6 +865,52 @@ async def run_crew_async(trip_id: str, inputs: Dict[str, Any]):
                 html_content = html_content[:-3]
             html_content = html_content.strip()
             
+            # Extract and log all URLs for debugging
+            try:
+                url_pattern = r'href="([^"]+)"'
+                all_urls = re.findall(url_pattern, html_content)
+                google_maps_urls = [url for url in all_urls if "google.com/maps" in url]
+                
+                print(f"[{trip_id}] 🔗 URL Analysis:")
+                print(f"  Total links found: {len(all_urls)}")
+                print(f"  Google Maps links: {len(google_maps_urls)}")
+                
+                # Check for specific problematic places
+                problematic_places = {
+                    "Musée d'Orsay": ["musée", "d'orsay", "orsay"],
+                    "Louvre Museum": ["louvre"],
+                    "Galeries Lafayette": ["galeries", "lafayette"],
+                    "Jardin du Luxembourg": ["jardin", "luxembourg", "jardin du luxembourg"]
+                }
+                
+                for place_name, keywords in problematic_places.items():
+                    # Find URLs near these place names in the HTML
+                    place_pattern = r'(?i)(' + '|'.join(keywords) + r')[^<]*<a[^>]+href="([^"]+)"'
+                    matches = re.findall(place_pattern, html_content)
+                    if matches:
+                        for match in matches[:2]:  # Show first 2 matches
+                            url = match[1] if isinstance(match, tuple) else match
+                            print(f"  🔍 {place_name}: {url}")
+                            # Validate URL format
+                            if "query_place_id" not in url:
+                                print(f"    ⚠️ WARNING: URL missing query_place_id parameter")
+                            if "maps.google.com/?cid=" in url:
+                                print(f"    ❌ ERROR: Using unreliable CID format")
+                
+                # Log sample of Google Maps URLs
+                if google_maps_urls:
+                    print(f"  Sample Google Maps URLs (first 5):")
+                    for url in google_maps_urls[:5]:
+                        print(f"    - {url}")
+                        # Check URL format
+                        if "query_place_id" not in url:
+                            print(f"      ⚠️ Missing query_place_id")
+                        if "maps.google.com/?cid=" in url:
+                            print(f"      ❌ Using CID format (unreliable)")
+                            
+            except Exception as e:
+                print(f"[{trip_id}] ⚠️ URL extraction error (non-blocking): {e}")
+            
             # Validate itinerary output
             try:
                 validation_result = validate_itinerary_output(html_content)

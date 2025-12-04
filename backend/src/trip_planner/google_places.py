@@ -77,14 +77,23 @@ class GooglePlacesAPI:
                 return []
             
             places = []
-            for result in data.get("results", [])[:max_results]:
+            print(f"[Google Places] 🔍 Text Search Results: Found {len(data.get('results', []))} results")
+            for idx, result in enumerate(data.get("results", [])[:max_results], 1):
                 place_id = result.get("place_id")
+                place_name = result.get("name", "Unknown")
+                print(f"  [{idx}] {place_name} (Place ID: {place_id})")
+                
                 if place_id:
                     # Get detailed information
                     details = self.get_place_details(place_id)
                     if details:
                         places.append(details)
+                    else:
+                        print(f"    ⚠️ Failed to get details for {place_name}")
+                else:
+                    print(f"    ❌ No place_id found for {place_name}")
             
+            print(f"[Google Places] ✅ Returning {len(places)} places with details")
             return places
             
         except requests.RequestException as e:
@@ -130,22 +139,41 @@ class GooglePlacesAPI:
             # with query_place_id, which is the most reliable method per Google's documentation
             place_name = result.get("name", "")
             formatted_address = result.get("formatted_address", "")
+            place_types = result.get("types", [])
+            original_api_url = result.get("url", "N/A")  # The CID URL from API
+            
+            # Log diagnostic information for URL construction
+            print(f"[Google Places] 🔍 Place Details Retrieved:")
+            print(f"  Place ID: {place_id}")
+            print(f"  Name: {place_name}")
+            print(f"  Address: {formatted_address}")
+            print(f"  Types: {', '.join(place_types[:5])}")  # Show first 5 types
+            print(f"  Original API URL (CID): {original_api_url}")
             
             # Use the search format with query_place_id - works for all place types
             # Format: https://www.google.com/maps/search/?api=1&query=PlaceName&query_place_id=PLACE_ID
             # This format is recommended by Google for linking to places using Place IDs
             from urllib.parse import quote_plus
             
-            if place_name:
-                # Use search format with place name and query_place_id
-                # This works reliably for businesses, parks, monuments, attractions, islands, etc.
-                encoded_name = quote_plus(place_name)
-                proper_maps_url = f"https://www.google.com/maps/search/?api=1&query={encoded_name}&query_place_id={place_id}"
-            else:
-                # Fallback if name is missing - still use query_place_id
+            try:
+                if place_name:
+                    # Use search format with place name and query_place_id
+                    # This works reliably for businesses, parks, monuments, attractions, islands, etc.
+                    encoded_name = quote_plus(place_name)
+                    proper_maps_url = f"https://www.google.com/maps/search/?api=1&query={encoded_name}&query_place_id={place_id}"
+                else:
+                    # Fallback if name is missing - still use query_place_id
+                    proper_maps_url = f"https://www.google.com/maps/search/?api=1&query_place_id={place_id}"
+                
+                print(f"  ✅ Constructed URL: {proper_maps_url}")
+                
+            except Exception as e:
+                print(f"  ❌ Error constructing URL: {e}")
+                # Fallback to simple format
                 proper_maps_url = f"https://www.google.com/maps/search/?api=1&query_place_id={place_id}"
+                print(f"  ⚠️ Using fallback URL: {proper_maps_url}")
             
-            return PlaceDetails(
+            place_details = PlaceDetails(
                 name=place_name,
                 formatted_address=formatted_address,
                 phone_number=result.get("formatted_phone_number"),
@@ -158,6 +186,12 @@ class GooglePlacesAPI:
                 place_id=place_id,
                 types=result.get("types", [])
             )
+            
+            # Final validation log
+            if not proper_maps_url or "query_place_id" not in proper_maps_url:
+                print(f"  ⚠️ WARNING: URL may be invalid - missing query_place_id parameter")
+            
+            return place_details
             
         except requests.RequestException as e:
             print(f"❌ Error getting place details: {e}")

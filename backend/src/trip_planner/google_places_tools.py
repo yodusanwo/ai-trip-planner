@@ -63,9 +63,17 @@ def google_places_search_tool(
                 "status": place.business_status,
                 "maps_url": place.google_maps_url,
                 "website": place.website,
-                "phone": place.phone_number
+                "phone": place.phone_number,
+                "place_id": place.place_id,  # Include place_id for debugging
+                "types": place.types  # Include types for debugging
             }
             results.append(result)
+            
+            # Log the URL being returned to the agent
+            print(f"[Google Places Tool] 📍 Returning place: {place.name}")
+            print(f"  Place ID: {place.place_id}")
+            print(f"  Maps URL: {place.google_maps_url}")
+            print(f"  Types: {', '.join(place.types[:3]) if place.types else 'N/A'}")
         
         return json.dumps(results, indent=2)
         
@@ -150,8 +158,16 @@ def google_place_details_tool(place_id: str) -> str:
             "reviews": place.user_ratings_total,
             "status": place.business_status,
             "opening_hours": place.opening_hours,
-            "types": place.types
+            "types": place.types,
+            "place_id": place.place_id  # Include place_id for debugging
         }
+        
+        # Log the details being returned
+        print(f"[Google Places Tool] 📍 Place Details Retrieved:")
+        print(f"  Name: {place.name}")
+        print(f"  Place ID: {place.place_id}")
+        print(f"  Maps URL: {place.google_maps_url}")
+        print(f"  Types: {', '.join(place.types[:5]) if place.types else 'N/A'}")
         
         return json.dumps(result, indent=2)
         
