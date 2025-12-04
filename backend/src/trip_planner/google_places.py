@@ -124,12 +124,32 @@ class GooglePlacesAPI:
             if "opening_hours" in result:
                 opening_hours = result["opening_hours"].get("weekday_text", [])
             
+            # Construct proper Google Maps place URL instead of using CID format
+            # The API returns CID URLs (maps.google.com/?cid=...) which are unreliable
+            # We'll construct a proper place URL using place_id
+            place_name = result.get("name", "")
+            formatted_address = result.get("formatted_address", "")
+            
+            # Build proper place URL - use place_id query parameter for reliability
+            # Format: https://www.google.com/maps/place/?q=place_id:{place_id}
+            # This format is guaranteed to work and redirects to the proper place page
+            from urllib.parse import quote_plus
+            
+            if place_name and formatted_address:
+                # Construct URL with place name in path for better UX
+                # Format: https://www.google.com/maps/place/{name}+{address}/?q=place_id:{place_id}
+                place_query = f"{place_name}, {formatted_address}"
+                proper_maps_url = f"https://www.google.com/maps/place/{quote_plus(place_query)}/?q=place_id:{place_id}"
+            else:
+                # Fallback to simple format if name/address missing
+                proper_maps_url = f"https://www.google.com/maps/place/?q=place_id:{place_id}"
+            
             return PlaceDetails(
-                name=result.get("name", ""),
-                formatted_address=result.get("formatted_address", ""),
+                name=place_name,
+                formatted_address=formatted_address,
                 phone_number=result.get("formatted_phone_number"),
                 website=result.get("website"),
-                google_maps_url=result.get("url"),
+                google_maps_url=proper_maps_url,  # Use constructed URL instead of API's CID URL
                 rating=result.get("rating"),
                 user_ratings_total=result.get("user_ratings_total"),
                 business_status=result.get("business_status"),
