@@ -1159,9 +1159,43 @@ async def get_result(trip_id: str):
         
         raise HTTPException(status_code=404, detail="Trip result not found")
     
+    html_content = trip_results[trip_id]
+    
+    # Log URLs being returned in HTML result
+    try:
+        url_pattern = r'href="([^"]+)"'
+        urls_in_result = re.findall(url_pattern, html_content)
+        google_maps_urls = [url for url in urls_in_result if "google.com/maps" in url]
+        
+        print(f"[HTML Result] 🔗 URLs in HTML result for {trip_id}:")
+        print(f"  Total links: {len(urls_in_result)}")
+        print(f"  Google Maps links: {len(google_maps_urls)}")
+        
+        # Check for problematic places
+        problematic_places = {
+            "Musée d'Orsay": ["musée", "d'orsay", "orsay"],
+            "Louvre Museum": ["louvre"],
+            "Galeries Lafayette": ["galeries", "lafayette"],
+            "Jardin du Luxembourg": ["jardin", "luxembourg"]
+        }
+        
+        for place_name, keywords in problematic_places.items():
+            place_pattern = r'(?i)(' + '|'.join(keywords) + r')[^<]*<a[^>]+href="([^"]+)"'
+            matches = re.findall(place_pattern, html_content)
+            if matches:
+                for match in matches[:1]:
+                    url = match[1] if isinstance(match, tuple) else match
+                    print(f"  📍 {place_name}: {url}")
+                    if "query_place_id" not in url:
+                        print(f"    ⚠️ Missing query_place_id")
+                    if "maps.google.com/?cid=" in url:
+                        print(f"    ❌ Using CID format")
+    except Exception as e:
+        print(f"[HTML Result] ⚠️ Error extracting URLs: {e}")
+    
     return TripResult(
         trip_id=trip_id,
-        html_content=trip_results[trip_id],
+        html_content=html_content,
     )
 
 
@@ -1234,6 +1268,38 @@ async def get_result_pdf(trip_id: str):
         print(f"[PDF] HTML content length: {len(html_content)} characters")
         print(f"[PDF] HTML preview (first 200 chars): {html_content[:200]}")
         
+        # Extract and log URLs BEFORE PDF generation
+        try:
+            url_pattern = r'href="([^"]+)"'
+            urls_before_pdf = re.findall(url_pattern, html_content)
+            google_maps_urls_before = [url for url in urls_before_pdf if "google.com/maps" in url]
+            
+            print(f"[PDF] 🔗 URLs BEFORE PDF generation:")
+            print(f"  Total links: {len(urls_before_pdf)}")
+            print(f"  Google Maps links: {len(google_maps_urls_before)}")
+            
+            # Check for problematic places
+            problematic_places = {
+                "Musée d'Orsay": ["musée", "d'orsay", "orsay"],
+                "Louvre Museum": ["louvre"],
+                "Galeries Lafayette": ["galeries", "lafayette"],
+                "Jardin du Luxembourg": ["jardin", "luxembourg"]
+            }
+            
+            for place_name, keywords in problematic_places.items():
+                place_pattern = r'(?i)(' + '|'.join(keywords) + r')[^<]*<a[^>]+href="([^"]+)"'
+                matches = re.findall(place_pattern, html_content)
+                if matches:
+                    for match in matches[:1]:
+                        url = match[1] if isinstance(match, tuple) else match
+                        print(f"  📍 {place_name}: {url}")
+                        if "query_place_id" not in url:
+                            print(f"    ⚠️ Missing query_place_id")
+                        if "maps.google.com/?cid=" in url:
+                            print(f"    ❌ Using CID format")
+        except Exception as e:
+            print(f"[PDF] ⚠️ Error extracting URLs before PDF: {e}")
+        
         # Ensure HTML content is valid and not empty
         if not html_content or len(html_content) < 100:
             raise Exception(f"Invalid HTML content: length={len(html_content)}")
@@ -1260,6 +1326,10 @@ async def get_result_pdf(trip_id: str):
             raise Exception("Generated PDF does not have valid PDF header")
         
         print(f"[PDF] Returning PDF response: {len(pdf_bytes)} bytes")
+        
+        # Note: WeasyPrint converts HTML to PDF but URLs in the PDF should remain unchanged
+        # If URLs are wrong in the PDF, they were wrong in the HTML input
+        # The logging above (URLs BEFORE PDF) will show what WeasyPrint received
         
         # Ensure pdf_bytes is bytes, not string
         if isinstance(pdf_bytes, str):
