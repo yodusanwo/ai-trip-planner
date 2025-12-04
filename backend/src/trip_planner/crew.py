@@ -171,23 +171,35 @@ List 3 hotel options from Google Places:
 - Hyperlink: Use Google Maps URL from Place Details
   Format: <a href="GOOGLE_MAPS_URL" target="_blank" rel="noopener noreferrer">View on Google Maps</a>
 
-📅 Daily Structure:
+📅 Daily Structure (MUST follow this exact format for ALL days):
 <h2>Day X: [Theme]</h2>
-<p><strong>Morning:</strong> Visit <a href="GOOGLE_MAPS_URL" target="_blank">[Place Name]</a> - [Address from Google Places] ⭐ [Rating]/5</p>
-<p><strong>Afternoon:</strong> Explore <a href="GOOGLE_MAPS_URL" target="_blank">[Attraction Name]</a> - [Address] ⭐ [Rating]/5</p>
-<p><strong>Evening:</strong> Dinner at <a href="GOOGLE_MAPS_URL" target="_blank">[Restaurant Name]</a> - [Address] ⭐ [Rating]/5</p>
+<p><strong>Morning:</strong> Visit <a href="UNIQUE_GOOGLE_MAPS_URL" target="_blank">[Place Name]</a> - [Address from Google Places] ⭐ [Rating]/5 ([Review Count] reviews)</p>
+<p><strong>Afternoon:</strong> Explore <a href="UNIQUE_GOOGLE_MAPS_URL" target="_blank">[Attraction Name]</a> - [Address] ⭐ [Rating]/5 ([Review Count] reviews)</p>
+<p><strong>Evening:</strong> Dinner at <a href="UNIQUE_GOOGLE_MAPS_URL" target="_blank">[Restaurant Name]</a> - [Address] ⭐ [Rating]/5 ([Review Count] reviews)</p>
+
+🔴 CRITICAL RULES:
+1. Each place MUST have its OWN unique Google Maps URL - NEVER reuse a URL from a different place
+2. Match each place name EXACTLY to its corresponding Google Maps URL from the research
+3. Verify URL-place name match: If place is "Musée d'Orsay", use Musée d'Orsay's URL (NOT Conciergerie's URL)
+4. Maintain proper HTML structure: Each day must have exactly 3 paragraphs (Morning, Afternoon, Evening)
+5. Keep days in sequential order (Day 1, Day 2, Day 3... Day {duration})
+6. Each place must appear only once per itinerary (no duplicates)
 
 ✅ REQUIRED for each place:
-- Google Maps URL from Google Places API (not generic web search)
-- Formatted address from Google Places
+- Unique Google Maps URL from Google Places API (one URL per place, never reused)
+- Formatted address from Google Places (must match the place name)
 - Rating and review count (if available)
 - Real business name (not generic descriptions)
 
-⚠️ Do NOT include:
-- Generic names like "local bistro", "Detroit Market"
-- Unlinked place names
-- URLs not from Google Places API
-- Places without addresses
+⚠️ Do NOT:
+- Reuse Google Maps URLs from different places
+- Use Conciergerie's URL for Musée d'Orsay (or any other place)
+- Mix up place names with wrong URLs
+- Create malformed HTML (broken tags, wrong order)
+- Include generic names like "local bistro", "Detroit Market"
+- Include unlinked place names
+- Use URLs not from Google Places API
+- Include places without addresses
 
 📚 Fallbacks (only if no verified places available):
 <h2>Suggestions & Resources</h2>
@@ -196,9 +208,15 @@ List 3 hotel options from Google Places:
 </ul>
 
 ✅ One blog per category only.
+
+🔍 Before finalizing, verify:
+- Each place name has its correct, unique Google Maps URL
+- No URL is used twice for different places
+- HTML structure is valid and properly formatted
+- All days are complete with Morning, Afternoon, and Evening activities
 """,
             agent=planner,
-            expected_output="HTML-formatted itinerary with Google Maps URLs, addresses, and ratings from verified Google Places data"
+            expected_output="HTML-formatted itinerary with unique Google Maps URLs (one per place), addresses, and ratings from verified Google Places data"
         )
 
         return Crew(
@@ -224,12 +242,20 @@ def validate_itinerary_output(itinerary_text: str):
     # Find all links and validate
     links = re.findall(r'href="([^"]+)"', itinerary_text)
     google_maps_count = 0
+    google_maps_urls = []
+    
     for url in links:
         # Prefer Google Maps URLs (they're always valid)
         if "maps.google.com" in url or "google.com/maps" in url:
             google_maps_count += 1
+            google_maps_urls.append(url)
         elif not is_valid_url(url):
             errors.append(f"❌ Broken or invalid URL: {url}")
+    
+    # Check for duplicate Google Maps URLs (indicates URL reuse)
+    if len(google_maps_urls) > len(set(google_maps_urls)):
+        duplicates = [url for url in set(google_maps_urls) if google_maps_urls.count(url) > 1]
+        errors.append(f"⚠️ Duplicate Google Maps URLs detected: {len(duplicates)} URL(s) used for multiple places. Each place must have a unique URL.")
     
     # Encourage use of Google Maps URLs
     if google_maps_count == 0 and len(links) > 0:
@@ -243,5 +269,17 @@ def validate_itinerary_output(itinerary_text: str):
     hotel_count = len(re.findall(r'Option \d:', itinerary_text))
     if hotel_count != 3:
         errors.append(f"⚠️ Found {hotel_count} hotel options. Expected 3.")
+    
+    # Check HTML structure - ensure proper day formatting
+    day_pattern = r'<h2>Day \d+'
+    days_found = len(re.findall(day_pattern, itinerary_text))
+    if days_found == 0:
+        errors.append("⚠️ No day sections found in HTML structure")
+    
+    # Check for malformed HTML (unclosed tags, broken structure)
+    open_p_tags = itinerary_text.count('<p>')
+    close_p_tags = itinerary_text.count('</p>')
+    if open_p_tags != close_p_tags:
+        errors.append(f"⚠️ HTML structure issue: {open_p_tags} opening <p> tags but {close_p_tags} closing </p> tags")
 
     return "✅ Passed all validation checks" if not errors else "\n".join(errors)
