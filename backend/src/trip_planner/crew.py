@@ -54,7 +54,7 @@ class TripPlanner:
         planner = Agent(
             role="Clean Itinerary Formatter",
             goal="Generate a structured HTML itinerary using verified listings and blog fallbacks when needed. Ensure all names are linked and real.",
-            backstory="You turn research into clean itineraries. If a location can't be verified, link to a helpful blog instead and place all blogs in a 'Suggestions' section at the end.",
+            backstory="You turn research into clean itineraries. If a location can't be verified, link to a helpful blog instead and place all blogs in a 'Suggestions' section at the end. When using the search tool, always use search_query parameter (not description).",
             tools=[search_tool],
             verbose=True,
             allow_delegation=False,
@@ -66,6 +66,11 @@ class TripPlanner:
         research_task = Task(
             description="""
 Research {destination} for a {duration}-day {travel_style}-style trip.
+
+🔍 TOOL USAGE:
+When using the search tool, ALWAYS use this format:
+- Parameter name: "search_query" (NOT "description")
+- Example: search_query="restaurants in Traverse City Michigan"
 
 ✅ Find real-world listings:
 - Restaurants, attractions, and 3 hotel options
@@ -90,6 +95,9 @@ Research {destination} for a {duration}-day {travel_style}-style trip.
         review_task = Task(
             description="""
 Validate listings for: {destination}
+
+🔍 TOOL USAGE:
+When using the search tool, ALWAYS use: search_query="your search term" (NOT "description")
 
 1. Check for invalid names like 'local eatery', 'Detroit Market'
 2. Make sure all URLs are valid (status 200 + content-type: HTML)
