@@ -161,9 +161,9 @@ If any place fails validation → remove and find replacement using Google Place
 
         planning_task = Task(
             description="""
-DEBUGGING MODE: Output ONLY URLs for each place.
+Format Google Maps URLs as HTML for PDF readability.
 
-Using verified Google Places research only, output ONLY the Google Maps URLs for a {duration}-day itinerary for {destination}.
+Using verified Google Places research only, format the Google Maps URLs for a {duration}-day itinerary for {destination} as HTML with proper spacing.
 
 🔴 CRITICAL: URL COPYING RULES
 - The research data contains a "maps_url" field for each place in JSON format
@@ -182,57 +182,69 @@ Using verified Google Places research only, output ONLY the Google Maps URLs for
 - NEVER reuse a URL from a different place
 - NEVER modify the URL (don't remove parameters, don't shorten it, don't change the format)
 
-📋 OUTPUT FORMAT (ONLY URLs):
-For each place in the itinerary, output ONLY:
-Place Name: [EXACT maps_url FROM RESEARCH]
+📋 OUTPUT FORMAT (HTML FORMATTED URLs):
+Format URLs as HTML with proper spacing for PDF readability. Use this format:
 
-🔴 CRITICAL: Each URL MUST be on a SEPARATE LINE with DOUBLE SPACING (blank line) between each URL.
+<p style="margin-bottom: 1em; line-height: 1.6;">
+<strong>Place Name:</strong> <a href="EXACT_maps_url" target="_blank" rel="noopener noreferrer">EXACT_maps_url</a>
+</p>
 
-Example - CORRECT FORMAT (each URL on its own line with blank line between):
-Eiffel Tower: https://www.google.com/maps/search/?api=1&query=Eiffel+Tower&query_place_id=ChIJLU7jZClu5kcR4PcOOO6p3I0
+🔴 CRITICAL: Each URL MUST be in its own paragraph tag with spacing for readability.
 
-Musée d'Orsay: https://www.google.com/maps/search/?api=1&query=Musée+d'Orsay&query_place_id=ChIJG5Qwtitu5kcR2CNEsYy9cdA
+Example - CORRECT FORMAT (HTML with proper spacing):
+<p style="margin-bottom: 1em; line-height: 1.6;">
+<strong>Eiffel Tower:</strong> <a href="https://www.google.com/maps/search/?api=1&query=Eiffel+Tower&query_place_id=ChIJLU7jZClu5kcR4PcOOO6p3I0" target="_blank" rel="noopener noreferrer">https://www.google.com/maps/search/?api=1&query=Eiffel+Tower&query_place_id=ChIJLU7jZClu5kcR4PcOOO6p3I0</a>
+</p>
 
-Louvre Museum: https://www.google.com/maps/search/?api=1&query=Louvre+Museum&query_place_id=ChIJD3uTd9hx5kcR1IQvGfr8dbk
+<p style="margin-bottom: 1em; line-height: 1.6;">
+<strong>Musée d'Orsay:</strong> <a href="https://www.google.com/maps/search/?api=1&query=Musée+d'Orsay&query_place_id=ChIJG5Qwtitu5kcR2CNEsYy9cdA" target="_blank" rel="noopener noreferrer">https://www.google.com/maps/search/?api=1&query=Musée+d'Orsay&query_place_id=ChIJG5Qwtitu5kcR2CNEsYy9cdA</a>
+</p>
+
+<p style="margin-bottom: 1em; line-height: 1.6;">
+<strong>Louvre Museum:</strong> <a href="https://www.google.com/maps/search/?api=1&query=Louvre+Museum&query_place_id=ChIJD3uTd9hx5kcR1IQvGfr8dbk" target="_blank" rel="noopener noreferrer">https://www.google.com/maps/search/?api=1&query=Louvre+Museum&query_place_id=ChIJD3uTd9hx5kcR1IQvGfr8dbk</a>
+</p>
 
 WRONG FORMAT (all URLs on one line - DO NOT DO THIS):
 Tokyo Tower: https://... NOBU Tokyo: https://... Shinjuku Sushi Hatsume: https://...
 
-WRONG FORMAT (single spacing - DO NOT DO THIS):
-Tokyo Tower: https://...
-NOBU Tokyo: https://...
-Shinjuku Sushi Hatsume: https://...
-
-CORRECT FORMAT (double spacing - blank line between each URL):
+WRONG FORMAT (plain text without HTML - DO NOT DO THIS):
 Tokyo Tower: https://www.google.com/maps/search/?api=1&query=Tokyo+Tower&query_place_id=ChIJCewJkL2LGGAR3Qmk0vCTGkg
-
 NOBU Tokyo: https://www.google.com/maps/search/?api=1&query=NOBU+Tokyo&query_place_id=ChIJVYCAW5CLGGARIvNkkLut6Jw
 
-Shinjuku Sushi Hatsume: https://www.google.com/maps/search/?api=1&query=Shinjuku+Sushi+Hatsume&query_place_id=ChIJJ7CsTOWNGGARoNI_jEvCE3g
+CORRECT FORMAT (HTML with proper spacing for PDF readability):
+<p style="margin-bottom: 1em; line-height: 1.6;">
+<strong>Tokyo Tower:</strong> <a href="https://www.google.com/maps/search/?api=1&query=Tokyo+Tower&query_place_id=ChIJCewJkL2LGGAR3Qmk0vCTGkg" target="_blank" rel="noopener noreferrer">https://www.google.com/maps/search/?api=1&query=Tokyo+Tower&query_place_id=ChIJCewJkL2LGGAR3Qmk0vCTGkg</a>
+</p>
+
+<p style="margin-bottom: 1em; line-height: 1.6;">
+<strong>NOBU Tokyo:</strong> <a href="https://www.google.com/maps/search/?api=1&query=NOBU+Tokyo&query_place_id=ChIJVYCAW5CLGGARIvNkkLut6Jw" target="_blank" rel="noopener noreferrer">https://www.google.com/maps/search/?api=1&query=NOBU+Tokyo&query_place_id=ChIJVYCAW5CLGGARIvNkkLut6Jw</a>
+</p>
 
 🔴 CRITICAL RULES:
-1. Output ONLY URLs - no HTML, no descriptions, no addresses
+1. Format URLs as HTML with proper spacing for PDF readability
 2. Copy the EXACT "maps_url" from research - do NOT modify it
 3. Match each place name to its corresponding "maps_url" from the research JSON
 4. Each place MUST have its OWN unique Google Maps URL - NEVER reuse a URL from a different place
 5. Include URLs for: 3 hotels + all attractions/restaurants for {duration} days
-6. One URL per line in format: "Place Name: URL" - each URL MUST be on its own separate line with DOUBLE SPACING (blank line) between each URL
-7. NEVER put multiple URLs on the same line - each place name and URL must be on its own line
-8. Add a blank line after each URL entry for double spacing in the output
+6. Use HTML format: <p style="margin-bottom: 1em; line-height: 1.6;"><strong>Place Name:</strong> <a href="URL">URL</a></p>
+7. Each URL MUST be in its own paragraph tag with margin-bottom: 1em for proper spacing
+8. NEVER put multiple URLs on the same line - each place name and URL must be in its own paragraph
 
 ✅ REQUIRED:
 - Copy EXACT "maps_url" from research (do not modify or reconstruct)
 - One URL per place
 - Match place name exactly to research data
-- Each place name and URL MUST be on a separate line with DOUBLE SPACING (blank line between each entry)
-- Format: Place Name: URL\n\n (where \n\n creates double spacing with blank line between entries)
+- Format each URL as HTML: <p style="margin-bottom: 1em; line-height: 1.6;"><strong>Place Name:</strong> <a href="URL">URL</a></p>
+- Use margin-bottom: 1em for proper spacing between entries in PDF
+- Include target="_blank" rel="noopener noreferrer" in anchor tags
 
 ⚠️ Do NOT:
 - Modify, shorten, or reconstruct URLs - copy them exactly as provided
 - Reuse Google Maps URLs from different places
-- Add HTML tags, descriptions, or any other content
+- Output plain text URLs without HTML formatting
 - Create your own URLs
 - Use placeholders
+- Put multiple URLs in the same paragraph tag
 
 📚 Fallbacks (only if no verified places available):
 <h2>Suggestions & Resources</h2>
@@ -245,11 +257,13 @@ Shinjuku Sushi Hatsume: https://www.google.com/maps/search/?api=1&query=Shinjuku
 🔍 Before finalizing, verify:
 - Each place name has its correct, unique Google Maps URL
 - No URL is used twice for different places
+- Each URL is formatted in HTML with proper spacing (paragraph tags with margin-bottom)
 - HTML structure is valid and properly formatted
 - All days are complete with Morning, Afternoon, and Evening activities
+- URLs are clickable links with proper HTML anchor tags
 """,
             agent=planner,
-            expected_output="Plain text list of place names and their exact Google Maps URLs (one per line with double spacing/blank line between each, format: 'Place Name: URL')"
+            expected_output="HTML formatted list of place names and their exact Google Maps URLs (each in a paragraph tag with proper spacing for PDF readability, format: '<p style=\"margin-bottom: 1em;\"><strong>Place Name:</strong> <a href=\"URL\">URL</a></p>')"
         )
 
         return Crew(
