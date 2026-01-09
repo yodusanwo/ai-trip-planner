@@ -115,8 +115,11 @@ app = FastAPI(
 )
 
 # CORS middleware
-# Allow origins from environment variable or default to localhost
-cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001").split(",")
+# Allow origins from environment variable or default to localhost + Vercel
+default_origins = "http://localhost:3000,http://localhost:3001,https://ai-trip-planner-dusky.vercel.app"
+cors_origins_env = os.getenv("CORS_ORIGINS", default_origins)
+# Split by comma and strip whitespace from each origin
+cors_origins = [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,  # Can be set via CORS_ORIGINS env var (comma-separated)
