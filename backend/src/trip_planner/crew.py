@@ -183,6 +183,23 @@ Using verified Google Places research only, format the Google Maps URLs for a {d
 - NEVER modify the URL (don't remove parameters, don't shorten it, don't change the format)
 
 📋 OUTPUT FORMAT (HTML FORMATTED URLs):
+Start with a summary paragraph explaining why these locations are recommended, then format URLs as HTML with proper spacing.
+
+1. SUMMARY PARAGRAPH (at the beginning):
+Write a 2-3 sentence paragraph explaining why these specific locations were selected for this trip. Consider:
+- Travel style preferences ({travel_style})
+- Budget considerations ({budget})
+- Duration of trip ({duration} days)
+- Special requirements ({special_requirements})
+- Overall theme or focus of the itinerary
+
+Format as:
+<h2>Why These Locations?</h2>
+<p style="margin-bottom: 1.5em; line-height: 1.8; font-size: 1.1em;">
+[Your explanation paragraph here - 2-3 sentences explaining why these locations match the user's preferences, travel style, budget, and trip duration]
+</p>
+
+2. URL LIST FORMAT:
 Format URLs as HTML with proper spacing for PDF readability. Use this format:
 
 <p style="margin-bottom: 1em; line-height: 1.6;">
@@ -191,7 +208,16 @@ Format URLs as HTML with proper spacing for PDF readability. Use this format:
 
 🔴 CRITICAL: Each URL MUST be in its own paragraph tag with spacing for readability.
 
-Example - CORRECT FORMAT (HTML with proper spacing):
+Example - COMPLETE OUTPUT FORMAT (with summary paragraph):
+
+<h2>Why These Locations?</h2>
+<p style="margin-bottom: 1.5em; line-height: 1.8; font-size: 1.1em;">
+These locations were carefully selected to match your {travel_style} travel style and {budget} budget for your {duration}-day trip to {destination}. Each place has been chosen based on high ratings (4.0+ stars), positive reviews, and alignment with your preferences. The itinerary balances must-see attractions with authentic local experiences, ensuring you make the most of your time while staying within your budget.
+</p>
+
+<h2>Location URLs</h2>
+
+Example - URL FORMAT (HTML with proper spacing):
 <p style="margin-bottom: 1em; line-height: 1.6;">
 <strong>Eiffel Tower:</strong> <a href="https://www.google.com/maps/search/?api=1&query=Eiffel+Tower&query_place_id=ChIJLU7jZClu5kcR4PcOOO6p3I0" target="_blank" rel="noopener noreferrer">https://www.google.com/maps/search/?api=1&query=Eiffel+Tower&query_place_id=ChIJLU7jZClu5kcR4PcOOO6p3I0</a>
 </p>
@@ -221,16 +247,20 @@ CORRECT FORMAT (HTML with proper spacing for PDF readability):
 </p>
 
 🔴 CRITICAL RULES:
-1. Format URLs as HTML with proper spacing for PDF readability
-2. Copy the EXACT "maps_url" from research - do NOT modify it
-3. Match each place name to its corresponding "maps_url" from the research JSON
-4. Each place MUST have its OWN unique Google Maps URL - NEVER reuse a URL from a different place
-5. Include URLs for: 3 hotels + all attractions/restaurants for {duration} days
-6. Use HTML format: <p style="margin-bottom: 1em; line-height: 1.6;"><strong>Place Name:</strong> <a href="URL">URL</a></p>
-7. Each URL MUST be in its own paragraph tag with margin-bottom: 1em for proper spacing
-8. NEVER put multiple URLs on the same line - each place name and URL must be in its own paragraph
+1. START with a summary paragraph explaining why locations were selected (required)
+2. Format URLs as HTML with proper spacing for PDF readability
+3. Copy the EXACT "maps_url" from research - do NOT modify it
+4. Match each place name to its corresponding "maps_url" from the research JSON
+5. Each place MUST have its OWN unique Google Maps URL - NEVER reuse a URL from a different place
+6. Include URLs for: 3 hotels + all attractions/restaurants for {duration} days
+7. Use HTML format: <p style="margin-bottom: 1em; line-height: 1.6;"><strong>Place Name:</strong> <a href="URL">URL</a></p>
+8. Each URL MUST be in its own paragraph tag with margin-bottom: 1em for proper spacing
+9. NEVER put multiple URLs on the same line - each place name and URL must be in its own paragraph
 
 ✅ REQUIRED:
+- START with a summary paragraph explaining why these locations are recommended (2-3 sentences)
+- Summary should reference: travel style ({travel_style}), budget ({budget}), duration ({duration} days), and special requirements ({special_requirements})
+- Format summary as: <h2>Why These Locations?</h2><p style="margin-bottom: 1.5em; line-height: 1.8; font-size: 1.1em;">[explanation]</p>
 - Copy EXACT "maps_url" from research (do not modify or reconstruct)
 - One URL per place
 - Match place name exactly to research data
@@ -255,6 +285,8 @@ CORRECT FORMAT (HTML with proper spacing for PDF readability):
 ✅ One blog per category only.
 
 🔍 Before finalizing, verify:
+- Summary paragraph is included at the beginning explaining why locations were selected
+- Summary references travel style, budget, duration, and special requirements
 - Each place name has its correct, unique Google Maps URL
 - No URL is used twice for different places
 - Each URL is formatted in HTML with proper spacing (paragraph tags with margin-bottom)
@@ -263,7 +295,7 @@ CORRECT FORMAT (HTML with proper spacing for PDF readability):
 - URLs are clickable links with proper HTML anchor tags
 """,
             agent=planner,
-            expected_output="HTML formatted list of place names and their exact Google Maps URLs (each in a paragraph tag with proper spacing for PDF readability, format: '<p style=\"margin-bottom: 1em;\"><strong>Place Name:</strong> <a href=\"URL\">URL</a></p>')"
+            expected_output="HTML formatted output starting with a summary paragraph explaining why locations were selected, followed by a list of place names and their exact Google Maps URLs (each in a paragraph tag with proper spacing for PDF readability)"
         )
 
         return Crew(
