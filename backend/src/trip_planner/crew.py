@@ -186,10 +186,29 @@ Using verified Google Places research only, output ONLY the Google Maps URLs for
 For each place in the itinerary, output ONLY:
 Place Name: [EXACT maps_url FROM RESEARCH]
 
-Example:
+🔴 CRITICAL: Each URL MUST be on a SEPARATE LINE with DOUBLE SPACING (blank line) between each URL.
+
+Example - CORRECT FORMAT (each URL on its own line with blank line between):
 Eiffel Tower: https://www.google.com/maps/search/?api=1&query=Eiffel+Tower&query_place_id=ChIJLU7jZClu5kcR4PcOOO6p3I0
+
 Musée d'Orsay: https://www.google.com/maps/search/?api=1&query=Musée+d'Orsay&query_place_id=ChIJG5Qwtitu5kcR2CNEsYy9cdA
+
 Louvre Museum: https://www.google.com/maps/search/?api=1&query=Louvre+Museum&query_place_id=ChIJD3uTd9hx5kcR1IQvGfr8dbk
+
+WRONG FORMAT (all URLs on one line - DO NOT DO THIS):
+Tokyo Tower: https://... NOBU Tokyo: https://... Shinjuku Sushi Hatsume: https://...
+
+WRONG FORMAT (single spacing - DO NOT DO THIS):
+Tokyo Tower: https://...
+NOBU Tokyo: https://...
+Shinjuku Sushi Hatsume: https://...
+
+CORRECT FORMAT (double spacing - blank line between each URL):
+Tokyo Tower: https://www.google.com/maps/search/?api=1&query=Tokyo+Tower&query_place_id=ChIJCewJkL2LGGAR3Qmk0vCTGkg
+
+NOBU Tokyo: https://www.google.com/maps/search/?api=1&query=NOBU+Tokyo&query_place_id=ChIJVYCAW5CLGGARIvNkkLut6Jw
+
+Shinjuku Sushi Hatsume: https://www.google.com/maps/search/?api=1&query=Shinjuku+Sushi+Hatsume&query_place_id=ChIJJ7CsTOWNGGARoNI_jEvCE3g
 
 🔴 CRITICAL RULES:
 1. Output ONLY URLs - no HTML, no descriptions, no addresses
@@ -197,12 +216,16 @@ Louvre Museum: https://www.google.com/maps/search/?api=1&query=Louvre+Museum&que
 3. Match each place name to its corresponding "maps_url" from the research JSON
 4. Each place MUST have its OWN unique Google Maps URL - NEVER reuse a URL from a different place
 5. Include URLs for: 3 hotels + all attractions/restaurants for {duration} days
-6. One URL per line in format: "Place Name: URL"
+6. One URL per line in format: "Place Name: URL" - each URL MUST be on its own separate line with DOUBLE SPACING (blank line) between each URL
+7. NEVER put multiple URLs on the same line - each place name and URL must be on its own line
+8. Add a blank line after each URL entry for double spacing in the output
 
 ✅ REQUIRED:
 - Copy EXACT "maps_url" from research (do not modify or reconstruct)
 - One URL per place
 - Match place name exactly to research data
+- Each place name and URL MUST be on a separate line with DOUBLE SPACING (blank line between each entry)
+- Format: Place Name: URL\n\n (where \n\n creates double spacing with blank line between entries)
 
 ⚠️ Do NOT:
 - Modify, shorten, or reconstruct URLs - copy them exactly as provided
@@ -226,7 +249,7 @@ Louvre Museum: https://www.google.com/maps/search/?api=1&query=Louvre+Museum&que
 - All days are complete with Morning, Afternoon, and Evening activities
 """,
             agent=planner,
-            expected_output="Plain text list of place names and their exact Google Maps URLs (one per line, format: 'Place Name: URL')"
+            expected_output="Plain text list of place names and their exact Google Maps URLs (one per line with double spacing/blank line between each, format: 'Place Name: URL')"
         )
 
         return Crew(
